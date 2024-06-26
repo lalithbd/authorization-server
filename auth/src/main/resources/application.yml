@@ -1,0 +1,16 @@
+spring:
+  application:
+  name: authorization.server
+  datasource:
+    url: jdbc:postgresql://localhost:5432/authServer?createDatabaseIfNotExist=true
+    username: root
+    password: root
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        ddl-auto: create
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+server:
+  port: 8080
