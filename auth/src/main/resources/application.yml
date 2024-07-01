@@ -14,3 +14,9 @@ spring:
     generate-ddl: true
 server:
   port: 8080
+logging.level:
+  org:
+    springframework:
+      web: DEBUG
+    hibernate: ERROR
+  com.mcueen.auth: DEBUG
