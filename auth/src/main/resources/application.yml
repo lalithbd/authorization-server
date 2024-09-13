@@ -12,11 +12,14 @@ spring:
         ddl-auto: create
         dialect: org.hibernate.dialect.PostgreSQLDialect
     generate-ddl: true
+  session:
+    store-type: jdbc
 server:
   port: 8080
 logging.level:
   org:
     springframework:
-      web: DEBUG
-    hibernate: ERROR
-  com.mcueen.auth: DEBUG
+      web: TRACE
+    hibernate: INFO
+  com.mcueen.auth: TRACE
+
