@@ -1,4 +1,4 @@
-package com.mcueen.auth.config.security;
+package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.User;
 import org.springframework.security.core.GrantedAuthority;

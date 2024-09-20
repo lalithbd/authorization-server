@@ -1,7 +1,7 @@
-package com.mcueen.auth.repository;
+package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.OAuth2Token;
-import org.hibernate.annotations.Comment;
+import com.mcueen.auth.repository.OAuth2TokenRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

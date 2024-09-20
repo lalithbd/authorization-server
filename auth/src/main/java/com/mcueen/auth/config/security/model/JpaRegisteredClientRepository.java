@@ -1,6 +1,7 @@
-package com.mcueen.auth.repository;
+package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.OAuth2Client;
+import com.mcueen.auth.repository.OAuth2ClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -8,7 +9,6 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -35,6 +35,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
     private RegisteredClient toRegisteredClient(OAuth2Client oauth2Client) {
         List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
+        authorizationGrantTypeList.add(AuthorizationGrantType.PASSWORD);
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
                 .clientId(oauth2Client.getClientId())
                 .clientSecret(oauth2Client.getClientSecret())

@@ -1,10 +1,12 @@
-package com.mcueen.auth.config.security;
+package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.RolePermission;
 import com.mcueen.auth.model.user.User;
 import com.mcueen.auth.model.user.UserRole;
 import com.mcueen.auth.repository.UserRepository;
 import com.mcueen.auth.service.RolePermissionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,6 +19,8 @@ import java.util.Optional;
 @Service
 public class CustomUserDetailService implements UserDetailsService {
 
+    Logger logger = LoggerFactory.getLogger(this.getClass());
+
     @Autowired
     private UserRepository userRepository;
 
@@ -24,6 +28,7 @@ public class CustomUserDetailService implements UserDetailsService {
     private RolePermissionService rolePermissionService;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        logger.info("take by username : {}", username);
         Optional<User> user = userRepository.findByEmail(username);
         if(user.isPresent()) {
             User presentUser = user.get();
