@@ -26,6 +26,7 @@ public class CustomUserDetailService implements UserDetailsService {
 
     @Autowired
     private RolePermissionService rolePermissionService;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         logger.info("take by username : {}", username);

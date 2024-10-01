@@ -12,6 +12,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -37,6 +38,9 @@ public class SecurityConfig {
     @Autowired
     private JpaRegisteredClientRepository jpaRegisteredClientRepository;
 
+//    @Autowired
+//    private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -46,8 +50,6 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .oauth2Login(oauth2LoginCustomizer ->
-                        oauth2LoginCustomizer.)
                 .csrf(AbstractHttpConfigurer::disable).build();
     }
 
@@ -57,11 +59,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity httpSecurity, JdbcTemplate jdbcTemplate) throws Exception {
-        AuthenticationManagerBuilder builder = httpSecurity.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(customUserDetailService).passwordEncoder(passwordEncoder());
-//        builder.authenticationProvider(clientSecretAuthenticationProvider(jdbcTemplate));
-        return builder.build();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean
@@ -78,10 +77,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider daoAuthenticationProvider(){
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
-        daoAuthenticationProvider.setUserDetailsService(customUserDetailService);
-        return daoAuthenticationProvider;
+        return new CustomPasswordAuthenticationProvider(customUserDetailService, passwordEncoder());
     }
 
     @Bean

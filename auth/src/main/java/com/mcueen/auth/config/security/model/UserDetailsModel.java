@@ -10,10 +10,10 @@ import java.util.List;
 
 public class UserDetailsModel implements UserDetails {
 
-    private String username;
-    private String password;
+    private final String username;
+    private final String password;
 
-    private List<SimpleGrantedAuthority> authorities;
+    private final List<SimpleGrantedAuthority> authorities;
 
     public UserDetailsModel(User user) {
         this.username = user.getEmail();
