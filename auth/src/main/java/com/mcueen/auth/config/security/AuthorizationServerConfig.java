@@ -4,6 +4,7 @@ package com.mcueen.auth.config.security;
 import com.mcueen.auth.config.security.model.CustomClientDetailsService;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
 
+import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,7 +48,7 @@ public class AuthorizationServerConfig extends OAuth2AuthorizationServerConfigur
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-//                .authenticationProvider(new CustomPasswordAuthenticationProvider(userDetailService, passwordEncoder))
+                .authenticationProvider(new CustomPasswordAuthenticationProvider(userDetailService, passwordEncoder()))
                 .build();
 //        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
 //        authorizationServerConfigurer.tokenGenerator(new OAuth2AccessTokenGenerator());
@@ -56,8 +57,9 @@ public class AuthorizationServerConfig extends OAuth2AuthorizationServerConfigur
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration, DataSource dataSource) throws Exception {
         OAuth2AuthenticationManager authenticationManager = new OAuth2AuthenticationManager();
-        authenticationManager.setClientDetailsService(customClientDetailsService);
-        authenticationManager.setTokenServices((ResourceServerTokenServices) tokenServices(dataSource));
+//        authenticationManager.setClientDetailsService(customClientDetailsService);
+//        authenticationManager.setTokenServices((ResourceServerTokenServices) tokenServices(dataSource));
+//        return authenticationManager;
         return authenticationConfiguration.getAuthenticationManager();
     }
 
@@ -74,14 +76,14 @@ public class AuthorizationServerConfig extends OAuth2AuthorizationServerConfigur
     }
 
 
-    @Bean
-    public AuthorizationServerTokenServices tokenServices(DataSource dataSource){
-        DefaultTokenServices tokenServices =  new DefaultTokenServices();
-        tokenServices.setTokenStore(new JdbcTokenStore(dataSource));
-        tokenServices.setReuseRefreshToken(false);
-        tokenServices.setSupportRefreshToken(true);
-        tokenServices.setClientDetailsService(customClientDetailsService);
-        return tokenServices;
-    }
+//    @Bean
+//    public AuthorizationServerTokenServices tokenServices(DataSource dataSource){
+//        DefaultTokenServices tokenServices =  new DefaultTokenServices();
+//        tokenServices.setTokenStore(new JdbcTokenStore(dataSource));
+//        tokenServices.setReuseRefreshToken(false);
+//        tokenServices.setSupportRefreshToken(true);
+//        tokenServices.setClientDetailsService(customClientDetailsService);
+//        return tokenServices;
+//    }
 
 }
