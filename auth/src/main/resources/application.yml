@@ -19,7 +19,7 @@ server:
 logging.level:
   org:
     springframework:
-      web: TRACE
-    hibernate: TRACE
-  com.mcueen.auth: TRACE
+      web: DEBUG
+    hibernate: DEBUG
+  com.mcueen.auth: DEBUG
 

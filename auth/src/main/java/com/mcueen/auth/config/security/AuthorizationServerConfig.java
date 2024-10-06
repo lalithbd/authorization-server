@@ -1,5 +1,6 @@
 package com.mcueen.auth.config.security;
 
+//import com.mcueen.auth.config.security.model.CustomClientDetailsService;
 import com.mcueen.auth.config.security.model.CustomClientDetailsService;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
 
@@ -27,21 +28,18 @@ import org.springframework.security.web.SecurityFilterChain;
 import javax.sql.DataSource;
 
 @Configuration
-@Import(OAuth2AuthorizationServerConfiguration.class)
-public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfiguration*/ {
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+//@Import(OAuth2AuthorizationServerConfiguration.class)
+public class AuthorizationServerConfig extends OAuth2AuthorizationServerConfiguration {
 
     @Autowired
     private CustomUserDetailService userDetailService;
 
     @Autowired
-    private CustomClientDetailsService CustomClientDetailsService;
+    private CustomClientDetailsService customClientDetailsService;
 
 
     @Bean
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/token").permitAll()
@@ -58,7 +56,7 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration, DataSource dataSource) throws Exception {
         OAuth2AuthenticationManager authenticationManager = new OAuth2AuthenticationManager();
-        authenticationManager.setClientDetailsService(CustomClientDetailsService);
+        authenticationManager.setClientDetailsService(customClientDetailsService);
         authenticationManager.setTokenServices((ResourceServerTokenServices) tokenServices(dataSource));
         return authenticationConfiguration.getAuthenticationManager();
     }
@@ -82,7 +80,7 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
         tokenServices.setTokenStore(new JdbcTokenStore(dataSource));
         tokenServices.setReuseRefreshToken(false);
         tokenServices.setSupportRefreshToken(true);
-        tokenServices.setClientDetailsService(new CustomClientDetailsService());
+        tokenServices.setClientDetailsService(customClientDetailsService);
         return tokenServices;
     }
 
