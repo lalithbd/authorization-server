@@ -1,6 +1,8 @@
 package com.mcueen.auth.config.security;
 
 
+import com.mcueen.auth.config.security.converter.PasswordAuthenticationConverter;
+import com.mcueen.auth.config.security.filter.CustomAuthenticationFilter;
 import com.mcueen.auth.config.security.model.CustomClientDetailsService;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
 import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
@@ -21,6 +23,7 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.sql.DataSource;
 
@@ -36,33 +39,22 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
 
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationConfiguration authenticationConfiguration) throws Exception {
 //        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
         return http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/token").permitAll()
+                        .requestMatchers("/token", "/user/login").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-//                .authenticationProvider(new CustomPasswordAuthenticationProvider(userDetailService, passwordEncoder()))
+                .addFilterBefore(new CustomAuthenticationFilter(authenticationManager(authenticationConfiguration)), UsernamePasswordAuthenticationFilter.class)
                 .build();
-//        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
-//        authorizationServerConfigurer.tokenGenerator(new OAuth2AccessTokenGenerator());
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public AuthenticationManager passwordAuthenticationManager() throws Exception {
-        OAuth2AuthenticationManager authenticationManager = new OAuth2AuthenticationManager();
-//        authenticationManager.setClientDetailsService(customClientDetailsService);
-//        authenticationManager.setTokenServices((ResourceServerTokenServices) tokenServices(dataSource));
-//        return authenticationManager;
-        return new ProviderManager(new CustomPasswordAuthenticationProvider(userDetailService, passwordEncoder()));
     }
 
     @Bean

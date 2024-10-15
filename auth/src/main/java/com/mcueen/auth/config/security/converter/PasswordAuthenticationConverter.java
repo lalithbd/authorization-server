@@ -4,13 +4,16 @@ import com.nimbusds.oauth2.sdk.GrantType;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
 import org.springframework.security.web.authentication.AuthenticationConverter;
+import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -18,23 +21,31 @@ import org.springframework.util.StringUtils;
 import java.util.HashMap;
 import java.util.Map;
 
+@Component
 public class PasswordAuthenticationConverter implements AuthenticationConverter {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    private AuthenticationManager authenticationManager;
+
+    public PasswordAuthenticationConverter(AuthenticationManager authenticationManager) {
+        this.authenticationManager = authenticationManager;
+    }
 
     @Override
     public Authentication convert(HttpServletRequest request) {
         String grantType = request.getParameter(OAuth2ParameterNames.GRANT_TYPE);
         if (!GrantType.PASSWORD.toString().equals(grantType)) {
-            return null;
+            if ("client_credentials".equals(grantType)) {
+                String clientId = request.getParameter("client_id");
+                String clientSecret = request.getParameter("client_secret");
+
+                // Return a token for client credentials grant type (this is just an example)
+                return new OAuth2ClientCredentialsAuthenticationToken(clientId, clientSecret);
+            }
         }
-        Authentication clientPrincipal = SecurityContextHolder.getContext().getAuthentication();
         MultiValueMap<String, String> parameters = getParameters(request);
-        String code = parameters.getFirst(OAuth2ParameterNames.CODE);
-        if (!StringUtils.hasText(code) ||
-                parameters.get(OAuth2ParameterNames.CODE).size() != 1) {
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-        }
+
 
         Map<String, Object> additionalParameters = new HashMap<>();
         parameters.forEach((key, value) -> {
@@ -46,7 +57,7 @@ public class PasswordAuthenticationConverter implements AuthenticationConverter 
             }
         });
 
-        return new UsernamePasswordAuthenticationToken(code, clientPrincipal);
+        return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(additionalParameters.get(OAuth2ParameterNames.USERNAME), additionalParameters.get(OAuth2ParameterNames.PASSWORD)));
     }
 
     private static MultiValueMap<String, String> getParameters(HttpServletRequest request) {

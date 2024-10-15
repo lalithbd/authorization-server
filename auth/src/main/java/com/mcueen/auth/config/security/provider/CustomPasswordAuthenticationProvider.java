@@ -1,6 +1,5 @@
 package com.mcueen.auth.config.security.provider;
 
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -26,14 +25,13 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         String username = authentication.getName();
         String password = authentication.getCredentials().toString();
-        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
-                (UsernamePasswordAuthenticationToken) authentication;
         UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
         if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
             return new UsernamePasswordAuthenticationToken(username, password, userDetails.getAuthorities());
         }
 
-        throw new AuthenticationException("Invalid credentials") {};
+        throw new AuthenticationException("Invalid credentials") {
+        };
     }
 
     @Override
@@ -55,8 +53,9 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         }
     }
 
+
     @Override
     public boolean supports(Class<?> authentication) {
-        return OAuth2ClientAuthenticationToken.class.isAssignableFrom(authentication);
+        return UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
     }
 }
