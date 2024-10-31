@@ -1,31 +1,24 @@
 package com.mcueen.auth.config.security;
 
 
-import com.mcueen.auth.config.security.converter.PasswordAuthenticationConverter;
-import com.mcueen.auth.config.security.filter.CustomAuthenticationFilter;
 import com.mcueen.auth.config.security.model.CustomClientDetailsService;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
-import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationManager;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import javax.sql.DataSource;
 
 @Configuration
 @Import(OAuth2AuthorizationServerConfiguration.class)
@@ -41,14 +34,20 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationConfiguration authenticationConfiguration) throws Exception {
 //        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        return http
+        return http/*
+                .requestCache(Customizer.withDefaults())*/
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/token", "/user/login").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
+//                .oauth2Login(configurer ->
+//                        configurer.successHandler((request, response, authentication) -> {
+//                    response.setStatus(200);
+//                    response.getWriter().write("Login success");
+//                }))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-                .addFilterBefore(new CustomAuthenticationFilter(authenticationManager(authenticationConfiguration)), UsernamePasswordAuthenticationFilter.class)
+//                .addFilterAt(new CustomAuthenticationFilters(authenticationManager(authenticationConfiguration)), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
@@ -89,5 +88,10 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
             }
         };
     }
+
+//    @Bean
+//    public ClientRegistrationRepository clientRegistrationRepository() {
+//        return new ClientRegistrationRepository();
+//    }
 
 }

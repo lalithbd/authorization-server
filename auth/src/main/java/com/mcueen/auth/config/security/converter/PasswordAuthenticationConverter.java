@@ -35,14 +35,8 @@ public class PasswordAuthenticationConverter implements AuthenticationConverter 
     @Override
     public Authentication convert(HttpServletRequest request) {
         String grantType = request.getParameter(OAuth2ParameterNames.GRANT_TYPE);
-        if (!GrantType.PASSWORD.toString().equals(grantType)) {
-            if ("client_credentials".equals(grantType)) {
-                String clientId = request.getParameter("client_id");
-                String clientSecret = request.getParameter("client_secret");
-
-                // Return a token for client credentials grant type (this is just an example)
-                return new OAuth2ClientCredentialsAuthenticationToken(clientId, clientSecret);
-            }
+        if (grantType == null || !GrantType.PASSWORD.toString().equals(grantType)) {
+            return null;
         }
         MultiValueMap<String, String> parameters = getParameters(request);
 

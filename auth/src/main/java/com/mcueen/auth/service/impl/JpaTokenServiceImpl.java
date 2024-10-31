@@ -1,12 +1,11 @@
-package com.mcueen.auth.config.security.model;
+package com.mcueen.auth.service.impl;
 
 import com.mcueen.auth.model.user.OAuth2Token;
 import com.mcueen.auth.repository.OAuth2TokenRepository;
+import com.mcueen.auth.service.JpaTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
-@Component
-public class JpaTokenService {
+public class JpaTokenServiceImpl implements JpaTokenService {
 
     @Autowired
     private OAuth2TokenRepository tokenRepository;
