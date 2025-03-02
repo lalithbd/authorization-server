@@ -1,5 +1,7 @@
 package com.mcueen.auth.config.security.provider;
 
+import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -8,13 +10,17 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.Base64;
 
 @Component
 public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvider {
+
+    @Autowired
+    private RegisteredClientRepository registeredClientRepository;
 
     public CustomPasswordAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
         super.setUserDetailsService(userDetailsService);
@@ -23,15 +29,24 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        String username = authentication.getName();
-        String password = authentication.getCredentials().toString();
+        ClientUserAuthenticationToken clientUserAuthenticationToken = (ClientUserAuthenticationToken) authentication;
+        String username = clientUserAuthenticationToken.getName();
+        String password = clientUserAuthenticationToken.getCredentials().toString();
+        String clientId = clientUserAuthenticationToken.getClientId();
+        String clientSecret = clientUserAuthenticationToken.getClientSecret();
+        RegisteredClient client = registeredClientRepository.findByClientId(clientId);
+        if(client == null) {
+            throw new BadCredentialsException("Invalid client");
+        }
+        if (!super.getPasswordEncoder().matches(clientSecret, client.getClientSecret())) {
+            throw new BadCredentialsException("Invalid client credentials");
+        }
         UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
         if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
-            return new UsernamePasswordAuthenticationToken(username, password, userDetails.getAuthorities());
+            return new ClientUserAuthenticationToken(username, password, userDetails.getAuthorities(), client);
         }
 
-        throw new AuthenticationException("Invalid credentials") {
-        };
+        throw new BadCredentialsException("Invalid credentials");
     }
 
     @Override
@@ -54,8 +69,4 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
     }
 
 
-    @Override
-    public boolean supports(Class<?> authentication) {
-        return UsernamePasswordAuthenticationToken.class.isAssignableFrom(authentication);
-    }
 }

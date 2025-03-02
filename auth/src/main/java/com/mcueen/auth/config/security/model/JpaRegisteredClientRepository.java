@@ -2,17 +2,26 @@ package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.OAuth2Client;
 import com.mcueen.auth.repository.OAuth2ClientRepository;
+import com.mcueen.auth.service.CommonService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class JpaRegisteredClientRepository implements RegisteredClientRepository {
+public class JpaRegisteredClientRepository implements RegisteredClientRepository/*, ClientRegistrationRepository*/ {
+
+    Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final OAuth2ClientRepository clientRepository;
 
@@ -39,6 +48,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
                 .clientId(oauth2Client.getClientId())
                 .clientSecret(oauth2Client.getClientSecret())
+                .tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build())
                 .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
                 .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
@@ -56,4 +66,5 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
         client.setScopes(registeredClient.getScopes());
         clientRepository.save(client);
     }
+
 }

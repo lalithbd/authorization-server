@@ -1,7 +1,7 @@
 package com.mcueen.auth.config.security;
 
 
-import com.mcueen.auth.config.security.model.CustomClientDetailsService;
+import com.mcueen.auth.config.security.filter.UsernamePasswordAuthFilter;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -13,46 +13,31 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
-import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
-import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
+import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.web.SecurityFilterChain;
-
-import javax.sql.DataSource;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @Import(OAuth2AuthorizationServerConfiguration.class)
-public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfiguration*/ {
+public class AuthorizationServerConfig {
 
     @Autowired
     private CustomUserDetailService userDetailService;
 
-    @Autowired
-    private CustomClientDetailsService customClientDetailsService;
-
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationConfiguration authenticationConfiguration) throws Exception {
-//        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        return http/*
-                .requestCache(Customizer.withDefaults())*/
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
+
+        return http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/token", "/user/login").permitAll()
+                        .requestMatchers("/token").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
-//                .oauth2Login(configurer ->
-//                        configurer.successHandler((request, response, authentication) -> {
-//                    response.setStatus(200);
-//                    response.getWriter().write("Login success");
-//                }))
                 .formLogin(AbstractHttpConfigurer::disable)
+                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
-//                .addFilterAt(new CustomAuthenticationFilters(authenticationManager(authenticationConfiguration)), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
@@ -73,15 +58,12 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
                 .build();
     }
 
-
     @Bean
-    public AuthorizationServerTokenServices tokenServices(DataSource dataSource){
-        DefaultTokenServices tokenServices =  new DefaultTokenServices();
-        tokenServices.setTokenStore(new JdbcTokenStore(dataSource));
-        tokenServices.setReuseRefreshToken(false);
-        tokenServices.setSupportRefreshToken(true);
-        tokenServices.setClientDetailsService(customClientDetailsService);
-        return tokenServices;
+    public OAuth2TokenGenerator<?> tokenGenerator() {
+        return new DelegatingOAuth2TokenGenerator(
+                new OAuth2AccessTokenGenerator(),
+                new OAuth2RefreshTokenGenerator()
+        );
     }
 
 
@@ -97,6 +79,10 @@ public class AuthorizationServerConfig /*extends OAuth2AuthorizationServerConfig
 //    @Bean
 //    public ClientRegistrationRepository clientRegistrationRepository() {
 //        return new ClientRegistrationRepository();
+//    }
+//    @Bean
+//    public OAuth2AccessTokenResponseAuthenticationSuccessHandler oAuth2AccessTokenResponseAuthenticationSuccessHandler() {
+//        return new OAuth2AccessTokenResponseAuthenticationSuccessHandler();
 //    }
 
 }

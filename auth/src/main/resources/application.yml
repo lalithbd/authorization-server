@@ -20,6 +20,8 @@ logging.level:
   org:
     springframework:
       web: DEBUG
+      security: DEBUG
+      security.oauth2: DEBUG
+
     hibernate: INFO
   com.mcueen.auth: DEBUG
-
