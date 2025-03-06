@@ -8,7 +8,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
@@ -91,11 +91,19 @@ public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
 //                    .authorizationServerContext(AuthorizationServerContextHolder.getContext())
                     .build();
             OAuth2Token oAuth2Token = tokenGenerator.generate(tokenContext);
+            tokenContext = DefaultOAuth2TokenContext.builder()
+                    .tokenType(OAuth2TokenType.REFRESH_TOKEN)  // Requesting an access token
+                    .principal(authentication)  // Authenticated user
+                    .registeredClient(authentication.getRegisteredClient())  // OAuth2 client details
+                    .authorizedScopes(Set.of("read", "write"))  // Define scopes
+                    .build();
+            OAuth2Token refreshToken = tokenGenerator.generate(tokenContext);
             OAuth2AccessTokenResponse.Builder builder = OAuth2AccessTokenResponse
-                    .withToken(oAuth2Token.getTokenValue())
+                    .withToken(oAuth2Token != null ? oAuth2Token.getTokenValue() : null)
                     .tokenType(OAuth2AccessToken.TokenType.BEARER)
+                    .refreshToken(refreshToken != null ? refreshToken.getTokenValue() : null)
                     .scopes(tokenContext.getAuthorizedScopes())
-                    .expiresIn(ChronoUnit.SECONDS.between(oAuth2Token.getIssuedAt(), oAuth2Token.getExpiresAt()));
+                    .expiresIn(ChronoUnit.SECONDS.between(Objects.requireNonNull(oAuth2Token.getIssuedAt()), oAuth2Token.getExpiresAt()));
 
 
 //            OAuth2Authorization authorization = authorizationBuilder.build();
