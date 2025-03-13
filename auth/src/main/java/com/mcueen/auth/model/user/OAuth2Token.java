@@ -1,17 +1,15 @@
 package com.mcueen.auth.model.user;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.Builder;
+import lombok.Data;
 
 import java.time.Instant;
 
 @Entity
-@Getter
-@Setter
+@Data
+@Builder
+@Table(name = "OAuth2Token")
 public class OAuth2Token {
 
     @Id
@@ -20,6 +18,7 @@ public class OAuth2Token {
     private String tokenType;
     private String clientId;
     private String tokenValue;
+    private String email;
     private Instant issuedAt;
     private Instant expiresAt;
 }

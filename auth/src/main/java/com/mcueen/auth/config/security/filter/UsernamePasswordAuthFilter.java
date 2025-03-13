@@ -3,6 +3,7 @@ package com.mcueen.auth.config.security.filter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.service.JpaTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,9 +18,11 @@ import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -36,13 +39,14 @@ public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
     private final ObjectMapper objectMapper;
-    private final OAuth2TokenGenerator<?> tokenGenerator;
+    private final OAuth2TokenGenerator<?> tokenGenerator = new DelegatingOAuth2TokenGenerator();
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
+    private final JpaTokenService jpaTokenService;
 
-    public UsernamePasswordAuthFilter(AuthenticationManager authenticationManager, OAuth2TokenGenerator<?> tokenGenerator) {
+    public UsernamePasswordAuthFilter(AuthenticationManager authenticationManager, JpaTokenService jpaTokenService) {
         this.authenticationManager = authenticationManager;
         this.objectMapper = new ObjectMapper();
-        this.tokenGenerator = tokenGenerator;
+        this.jpaTokenService = jpaTokenService;
     }
 
     @Autowired
@@ -72,12 +76,11 @@ public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
             }
             String base64Credentials = authHeader.substring(6);
 
-            // Decode Base64 to get client_id:client_secret
+
             String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
 
-            // Split into client_id and client_secret
             String[] parts = credentials.split(":", 2);
-            // Create authentication token
+
             ClientUserAuthenticationToken authentication = (ClientUserAuthenticationToken) authenticationManager.authenticate(
                     new ClientUserAuthenticationToken(username, password, parts[0], parts[1]));
 
@@ -104,12 +107,8 @@ public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
                     .refreshToken(refreshToken != null ? refreshToken.getTokenValue() : null)
                     .scopes(tokenContext.getAuthorizedScopes())
                     .expiresIn(ChronoUnit.SECONDS.between(Objects.requireNonNull(oAuth2Token.getIssuedAt()), oAuth2Token.getExpiresAt()));
+            jpaTokenService.saveToken(oAuth2Token, refreshToken, authentication.getRegisteredClient(), authentication.getName());
 
-
-//            OAuth2Authorization authorization = authorizationBuilder.build();
-//
-//            this.authorizationService.save(authorization);
-//
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
             this.accessTokenResponseConverter.write(builder.build(), null, httpResponse);
 

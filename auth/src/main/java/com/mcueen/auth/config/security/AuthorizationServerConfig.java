@@ -3,6 +3,7 @@ package com.mcueen.auth.config.security;
 
 import com.mcueen.auth.config.security.filter.UsernamePasswordAuthFilter;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
+import com.mcueen.auth.service.JpaTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,9 @@ public class AuthorizationServerConfig {
     @Autowired
     private CustomUserDetailService userDetailService;
 
+    @Autowired
+    private JpaTokenService jpaTokenService;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
@@ -36,7 +40,7 @@ public class AuthorizationServerConfig {
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, jpaTokenService), UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
@@ -58,14 +62,6 @@ public class AuthorizationServerConfig {
                 .build();
     }
 
-    @Bean
-    public OAuth2TokenGenerator<?> tokenGenerator() {
-        return new DelegatingOAuth2TokenGenerator(
-                new OAuth2AccessTokenGenerator(),
-                new OAuth2RefreshTokenGenerator()
-        );
-    }
-
 
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
@@ -75,14 +71,4 @@ public class AuthorizationServerConfig {
             }
         };
     }
-
-//    @Bean
-//    public ClientRegistrationRepository clientRegistrationRepository() {
-//        return new ClientRegistrationRepository();
-//    }
-//    @Bean
-//    public OAuth2AccessTokenResponseAuthenticationSuccessHandler oAuth2AccessTokenResponseAuthenticationSuccessHandler() {
-//        return new OAuth2AccessTokenResponseAuthenticationSuccessHandler();
-//    }
-
 }

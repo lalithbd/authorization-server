@@ -4,6 +4,7 @@ import com.mcueen.auth.model.user.OAuth2Token;
 import com.mcueen.auth.repository.OAuth2TokenRepository;
 import com.mcueen.auth.service.JpaTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 
 public class JpaTokenServiceImpl implements JpaTokenService {
 
@@ -19,5 +20,10 @@ public class JpaTokenServiceImpl implements JpaTokenService {
 
     public OAuth2Token findToken(Long tokenId) {
         return tokenRepository.findById(tokenId).orElse(null);
+    }
+
+    @Override
+    public void saveToken(org.springframework.security.oauth2.core.OAuth2Token oAuth2Token, org.springframework.security.oauth2.core.OAuth2Token refreshToken, RegisteredClient registeredClient, String name) {
+
     }
 }
