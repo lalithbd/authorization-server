@@ -1,6 +1,7 @@
 package com.mcueen.auth.config.security;
 
 
+import com.mcueen.auth.config.security.filter.CustomTokenFilter;
 import com.mcueen.auth.config.security.filter.UsernamePasswordAuthFilter;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
 import com.mcueen.auth.service.JpaTokenService;
@@ -40,7 +41,8 @@ public class AuthorizationServerConfig {
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, jpaTokenService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new CustomTokenFilter(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
@@ -70,5 +72,10 @@ public class AuthorizationServerConfig {
                 context.getClaims().claim("user_name", context.getPrincipal().getName());
             }
         };
+    }
+
+    @Bean
+    public OAuth2TokenGenerator<?> tokenGenerator() {
+        return new DelegatingOAuth2TokenGenerator(new OAuth2RefreshTokenGenerator(), new OAuth2AccessTokenGenerator());
     }
 }

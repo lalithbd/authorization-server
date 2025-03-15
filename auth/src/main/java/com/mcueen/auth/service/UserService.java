@@ -9,4 +9,6 @@ public interface UserService extends CommonService {
     void create(User user);
 
     LoginResponse login(LoginDto loginDto);
+
+    Object getAll();
 }

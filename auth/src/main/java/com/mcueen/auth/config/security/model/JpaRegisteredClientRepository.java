@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class JpaRegisteredClientRepository implements RegisteredClientRepository/*, ClientRegistrationRepository*/ {
+public class JpaRegisteredClientRepository implements RegisteredClientRepository {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -44,9 +44,9 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
     private RegisteredClient toRegisteredClient(OAuth2Client oauth2Client) {
         List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
-        authorizationGrantTypeList.add(AuthorizationGrantType.PASSWORD);
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
                 .clientId(oauth2Client.getClientId())
+                .scope("read")
                 .clientSecret(oauth2Client.getClientSecret())
                 .tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build())
                 .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))

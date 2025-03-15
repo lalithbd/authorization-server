@@ -18,11 +18,9 @@ import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
-import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
-import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -35,7 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
+public class CustomTokenFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
     private final ObjectMapper objectMapper;
@@ -43,7 +41,7 @@ public class UsernamePasswordAuthFilter extends OncePerRequestFilter {
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
     private final JpaTokenService jpaTokenService;
 
-    public UsernamePasswordAuthFilter(AuthenticationManager authenticationManager, JpaTokenService jpaTokenService, OAuth2TokenGenerator<?> auth2TokenGenerator) {
+    public CustomTokenFilter(AuthenticationManager authenticationManager, JpaTokenService jpaTokenService, OAuth2TokenGenerator<?> auth2TokenGenerator) {
         this.authenticationManager = authenticationManager;
         this.objectMapper = new ObjectMapper();
         this.jpaTokenService = jpaTokenService;

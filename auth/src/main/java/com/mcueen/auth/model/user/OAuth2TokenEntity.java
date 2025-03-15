@@ -10,7 +10,7 @@ import java.time.Instant;
 @Data
 @Builder
 @Table(name = "OAuth2Token")
-public class OAuth2Token {
+public class OAuth2TokenEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

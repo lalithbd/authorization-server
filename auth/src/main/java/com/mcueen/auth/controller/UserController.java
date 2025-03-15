@@ -11,14 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2AccessTokenResponseAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping(value = "/user")
+@RequestMapping(value = "/users")
 public class UserController {
 
     @Autowired
@@ -44,4 +41,8 @@ public class UserController {
 //        return new ResponseEntity<>(HttpStatus.OK);
 //    }
 
+    @GetMapping
+    public ResponseEntity<?> getAll() {
+        return new ResponseEntity<>(userService.getAll(), HttpStatus.OK);
+    }
 }
