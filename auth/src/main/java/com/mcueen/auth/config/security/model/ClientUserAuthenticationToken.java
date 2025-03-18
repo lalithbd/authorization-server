@@ -26,4 +26,8 @@ public class ClientUserAuthenticationToken extends UsernamePasswordAuthenticatio
         super(principal, credentials, authorities);
         this.registeredClient = registeredClient;
     }
+
+    public ClientUserAuthenticationToken(Object principal) {
+        super(principal, null, null);
+    }
 }

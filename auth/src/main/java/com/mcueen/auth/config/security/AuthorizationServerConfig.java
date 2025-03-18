@@ -1,20 +1,22 @@
 package com.mcueen.auth.config.security;
 
 
-import com.mcueen.auth.config.security.filter.CustomTokenFilter;
-import com.mcueen.auth.config.security.filter.UsernamePasswordAuthFilter;
+import com.mcueen.auth.config.security.filter.CustomTokenHandler;
+import com.mcueen.auth.config.security.filter.RefreshTokenHandler;
+import com.mcueen.auth.config.security.filter.UsernamePasswordAuthHandler;
 import com.mcueen.auth.config.security.model.CustomUserDetailService;
+import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
 import com.mcueen.auth.service.JpaTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
@@ -31,6 +33,9 @@ public class AuthorizationServerConfig {
     @Autowired
     private JpaTokenService jpaTokenService;
 
+    @Autowired
+    private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
@@ -41,20 +46,16 @@ public class AuthorizationServerConfig {
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .addFilterAfter(new UsernamePasswordAuthFilter(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new CustomTokenFilter(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new UsernamePasswordAuthHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new RefreshTokenHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new CustomTokenHandler(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new ProviderManager(new DaoAuthenticationProvider(), refreshTokenAuthenticationProvider);
     }
 
     @Bean
@@ -62,16 +63,6 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder()
                 .tokenEndpoint("/token")
                 .build();
-    }
-
-
-    @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
-        return context -> {
-            if (context.getPrincipal() != null) {
-                context.getClaims().claim("user_name", context.getPrincipal().getName());
-            }
-        };
     }
 
     @Bean

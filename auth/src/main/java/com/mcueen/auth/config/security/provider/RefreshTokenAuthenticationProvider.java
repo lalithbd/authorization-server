@@ -1,9 +1,11 @@
 package com.mcueen.auth.config.security.provider;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.dao.AbstractUserDetailsAuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -14,17 +16,16 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
 
-import java.util.Base64;
-
 @Component
-public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvider {
+public class RefreshTokenAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
 
     @Autowired
     private RegisteredClientRepository registeredClientRepository;
 
-    public CustomPasswordAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-        super.setUserDetailsService(userDetailsService);
-        super.setPasswordEncoder(passwordEncoder);
+
+    @Override
+    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+
     }
 
     @Override
@@ -38,35 +39,17 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         if(client == null) {
             throw new BadCredentialsException("Invalid client");
         }
-        if (!super.getPasswordEncoder().matches(clientSecret, client.getClientSecret())) {
-            throw new BadCredentialsException("Invalid client credentials");
-        }
-        UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
-        if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
-            return new ClientUserAuthenticationToken(username, password, null, client);
-        }
 
         throw new BadCredentialsException("Invalid credentials");
     }
 
     @Override
-    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) {
-
-        if (authentication.getCredentials() == null) {
-
-            throw new BadCredentialsException(this.messages
-                    .getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials",
-                            "Invalid credentials provided. Please check your username and password"));
-        }
-
-        String presentedPassword = new String(Base64.getUrlDecoder().decode(authentication.getCredentials().toString()));
-
-        if (!this.getPasswordEncoder().matches(presentedPassword, userDetails.getPassword())) {
-            throw new BadCredentialsException(this.messages
-                    .getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials",
-                            "Invalid credentials provided. Please check your username and password"));
-        }
+    protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+        return null;
     }
 
-
+    @Override
+    public boolean supports(Class<?> authentication) {
+        return (RefreshTokenAuthenticationToken.class.isAssignableFrom(authentication));
+    }
 }

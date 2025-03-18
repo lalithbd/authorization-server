@@ -11,4 +11,8 @@ public interface UserService extends CommonService {
     LoginResponse login(LoginDto loginDto);
 
     Object getAll();
+
+    User findByEmail(String username);
+
+    User findById(Long userId);
 }
