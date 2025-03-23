@@ -1,5 +1,6 @@
 package com.mcueen.auth.model.user;
 
+import com.mcueen.auth.util.TokenType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +21,9 @@ public class OAuth2TokenEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String tokenType;
+
+    @Enumerated(value = EnumType.STRING)
+    private TokenType tokenType;
     private String clientId;
     private String tokenValue;
     private String email;

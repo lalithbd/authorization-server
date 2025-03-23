@@ -11,6 +11,7 @@ import com.mcueen.auth.util.TokenType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.stereotype.Service;
@@ -43,23 +44,21 @@ public class JpaTokenServiceImpl implements JpaTokenService {
         tokenRepository.save(tokenEntity);
     }
 
-    public OAuth2TokenEntity findByToken(String tokenValue) {
-        return tokenRepository.findByTokenValue(tokenValue).orElse(null);
-    }
-
     @Override
     @Transactional
-    public void saveToken(OAuth2Token accessToken, OAuth2Token refreshToken, RegisteredClient registeredClient, String name) {
+    public void saveToken(OAuth2AccessToken accessToken, OAuth2Token refreshToken, RegisteredClient registeredClient, String name) {
+        tokenRepository.deleteAllByEmail(name);
         OAuth2TokenEntity accessTokenEntity = OAuth2TokenEntity.builder()
                 .tokenValue(accessToken.getTokenValue())
-                .tokenType(TokenType.ACCESS.toString())
+                .tokenType(TokenType.ACCESS)
                 .clientId(registeredClient.getClientId())
                 .expiresAt(accessToken.getExpiresAt())
                 .issuedAt(accessToken.getIssuedAt())
+                .scopes(accessToken.getScopes().stream().toList())
                 .email(name).build();
         OAuth2TokenEntity refreshTokenEntity = OAuth2TokenEntity.builder()
                 .tokenValue(refreshToken.getTokenValue())
-                .tokenType(TokenType.REFRESH.toString())
+                .tokenType(TokenType.REFRESH)
                 .clientId(registeredClient.getClientId())
                 .expiresAt(refreshToken.getExpiresAt())
                 .issuedAt(refreshToken.getIssuedAt())
@@ -71,29 +70,34 @@ public class JpaTokenServiceImpl implements JpaTokenService {
     @Override
     public List<GrantedAuthority> getAuthorities(OAuth2TokenEntity auth2TokenEntity) {
         List<GrantedAuthority> grantedAuthorities = new ArrayList<>();
-            if(auth2TokenEntity != null){
-                String email = auth2TokenEntity.getEmail();
-                if(email != null) {
-                    User user = userService.findByEmail(email);
-                    if(user != null) {
-                        List<UserRole> userRoles = rolePermissionService.getUserRolesByUserId(user.getId());
-                        List<SimpleGrantedAuthority> permissions = userRoles.stream()
-                                .flatMap(userRole -> rolePermissionService.getRolePermissionsByRoleId(userRole.getRole().getId()).stream())
-                                .toList().stream().map(rolePermission -> new SimpleGrantedAuthority("PERMISSION_" + rolePermission.getPermission().getName())).toList();
-                        grantedAuthorities.addAll(permissions);
-                    }
+        if (auth2TokenEntity != null) {
+            String email = auth2TokenEntity.getEmail();
+            if (email != null) {
+                User user = userService.findByEmail(email);
+                if (user != null) {
+                    List<UserRole> userRoles = rolePermissionService.getUserRolesByUserId(user.getId());
+                    List<SimpleGrantedAuthority> permissions = userRoles.stream()
+                            .flatMap(userRole -> rolePermissionService.getRolePermissionsByRoleId(userRole.getRole().getId()).stream())
+                            .toList().stream().map(rolePermission -> new SimpleGrantedAuthority("PERMISSION_" + rolePermission.getPermission().getName())).toList();
+                    grantedAuthorities.addAll(permissions);
                 }
-
-                List<String> scopes = auth2TokenEntity.getScopes();
-                if(!CollectionUtils.isEmpty(scopes)){
-                    List<GrantedAuthority> scopeAuthorities = scopes.stream()
-                            .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
-                            .collect(Collectors.toList());
-
-                    grantedAuthorities.addAll(scopeAuthorities);
-                }
-
             }
-            return grantedAuthorities;
+
+            List<String> scopes = auth2TokenEntity.getScopes();
+            if (!CollectionUtils.isEmpty(scopes)) {
+                List<GrantedAuthority> scopeAuthorities = scopes.stream()
+                        .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+                        .collect(Collectors.toList());
+
+                grantedAuthorities.addAll(scopeAuthorities);
+            }
+
+        }
+        return grantedAuthorities;
+    }
+
+    @Override
+    public OAuth2TokenEntity findByTokenValueAndTokenType(String token, TokenType tokenType) {
+        return tokenRepository.findByTokenValueAndTokenType(token, tokenType);
     }
 }

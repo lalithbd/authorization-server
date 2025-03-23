@@ -10,6 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,9 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
 
     @Autowired
     private RegisteredClientRepository registeredClientRepository;
+
+    @Autowired
+    private AuthenticationProviderHelper authenticationProviderHelper;
 
     public CustomPasswordAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
         super.setUserDetailsService(userDetailsService);
@@ -35,7 +39,7 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         String clientId = clientUserAuthenticationToken.getClientId();
         String clientSecret = clientUserAuthenticationToken.getClientSecret();
         RegisteredClient client = registeredClientRepository.findByClientId(clientId);
-        if(client == null) {
+        if (client == null) {
             throw new BadCredentialsException("Invalid client");
         }
         if (!super.getPasswordEncoder().matches(clientSecret, client.getClientSecret())) {
@@ -43,7 +47,8 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         }
         UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
         if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
-            return new ClientUserAuthenticationToken(username, password, null, client);
+            OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authentication, client);
+            return new ClientUserAuthenticationToken(username, client, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
         }
 
         throw new BadCredentialsException("Invalid credentials");

@@ -2,11 +2,8 @@ package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.OAuth2Client;
 import com.mcueen.auth.repository.OAuth2ClientRepository;
-import com.mcueen.auth.service.CommonService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -21,9 +18,8 @@ import java.util.List;
 @Service
 public class JpaRegisteredClientRepository implements RegisteredClientRepository {
 
-    Logger logger = LoggerFactory.getLogger(this.getClass());
-
     private final OAuth2ClientRepository clientRepository;
+    Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public JpaRegisteredClientRepository(OAuth2ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
@@ -42,6 +38,9 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
     }
 
     private RegisteredClient toRegisteredClient(OAuth2Client oauth2Client) {
+        if (oauth2Client == null) {
+            return null;
+        }
         List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
