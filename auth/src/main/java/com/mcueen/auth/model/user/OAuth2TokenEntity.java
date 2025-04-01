@@ -1,6 +1,5 @@
 package com.mcueen.auth.model.user;
 
-import com.mcueen.auth.util.TokenType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,16 +20,15 @@ public class OAuth2TokenEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Enumerated(value = EnumType.STRING)
-    private TokenType tokenType;
+    private String authorizationId;
     private String clientId;
+    private String oAuth2TokenType;
     private String tokenValue;
     private String email;
     private Instant issuedAt;
     private Instant expiresAt;
     private boolean isRevoked;
 
-    @Column(columnDefinition = "json")
+    @Column(columnDefinition = "TEXT[]")
     private List<String> scopes;
 }

@@ -1,6 +1,6 @@
 package com.mcueen.auth.util;
 
-public enum TokenType {
+public enum AuthProvider {
     BEARER,
     ACCESS,
     REFRESH

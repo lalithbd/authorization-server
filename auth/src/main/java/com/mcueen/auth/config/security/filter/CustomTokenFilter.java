@@ -1,28 +1,27 @@
 package com.mcueen.auth.config.security.filter;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.config.security.model.CustomOAuth2AuthorizationService;
 import com.mcueen.auth.model.user.OAuth2TokenEntity;
-import com.mcueen.auth.service.JpaTokenService;
-import com.mcueen.auth.util.TokenType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Instant;
 
+@Component
 public class CustomTokenFilter extends OncePerRequestFilter {
 
-    private final JpaTokenService jpaTokenService;
-
-    public CustomTokenFilter(JpaTokenService jpaTokenService) {
-        this.jpaTokenService = jpaTokenService;
-
-    }
+    @Autowired
+    private CustomOAuth2AuthorizationService oAuth2AuthorizationService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -34,8 +33,8 @@ public class CustomTokenFilter extends OncePerRequestFilter {
             return;
         }
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            OAuth2TokenEntity auth2TokenEntity = jpaTokenService.findByTokenValueAndTokenType(token, TokenType.BEARER);
-            if (auth2TokenEntity != null && auth2TokenEntity.getTokenType().equals(TokenType.ACCESS) && !auth2TokenEntity.isRevoked() && !auth2TokenEntity.getExpiresAt().isBefore(Instant.now())) {
+            OAuth2TokenEntity auth2TokenEntity = oAuth2AuthorizationService.findByTokenValueAndTokenType(token, OAuth2TokenType.ACCESS_TOKEN);
+            if (auth2TokenEntity != null && !auth2TokenEntity.isRevoked() && !auth2TokenEntity.getExpiresAt().isBefore(Instant.now())) {
                 ClientUserAuthenticationToken authentication = new ClientUserAuthenticationToken(token);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);

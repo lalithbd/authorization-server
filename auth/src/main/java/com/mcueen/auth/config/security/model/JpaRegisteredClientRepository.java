@@ -48,7 +48,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
                 .scope("read")
                 .clientSecret(oauth2Client.getClientSecret())
                 .tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build())
-                .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
+//                .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
                 .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantTypes(authorizationGrantTypes -> authorizationGrantTypes.addAll(authorizationGrantTypeList))
