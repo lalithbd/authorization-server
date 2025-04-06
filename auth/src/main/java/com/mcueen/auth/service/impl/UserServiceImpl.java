@@ -2,13 +2,15 @@ package com.mcueen.auth.service.impl;
 
 import com.mcueen.auth.controller.dto.user.LoginDto;
 import com.mcueen.auth.controller.dto.user.LoginResponse;
-import com.mcueen.auth.model.user.*;
+import com.mcueen.auth.model.user.User;
 import com.mcueen.auth.repository.UserRepository;
 import com.mcueen.auth.service.RolePermissionService;
 import com.mcueen.auth.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -31,5 +33,21 @@ public class UserServiceImpl implements UserService {
     @Override
     public LoginResponse login(LoginDto loginDto) {
         return new LoginResponse("asdasdad", "dsdsdsdsd");
+    }
+
+    @Override
+    public Object getAll() {
+        return userRepository.findAll();
+    }
+
+    @Override
+    public User findByEmail(String username) {
+        Optional<User> user = userRepository.findByEmail(username);
+        return user.orElse(null);
+    }
+
+    @Override
+    public User findById(Long userId) {
+        return userRepository.getReferenceById(userId);
     }
 }

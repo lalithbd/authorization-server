@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionController {
 
     @ExceptionHandler(value = AuthServiceException.class)
-    public ResponseEntity handleAuthServiceException(AuthServiceException authServiceException) {
+    public ResponseEntity<?> handleAuthServiceException(AuthServiceException authServiceException) {
         return new ResponseEntity<>(authServiceException.getMessage(), authServiceException.getHttpStatus());
     }
 }

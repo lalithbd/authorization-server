@@ -2,12 +2,10 @@ package com.mcueen.auth.service;
 
 import com.mcueen.auth.controller.dto.UserCreateDto;
 import com.mcueen.auth.exception.AuthServiceException;
-import com.mcueen.auth.model.user.User;
 import org.modelmapper.MappingException;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 
 import java.lang.reflect.Type;
@@ -18,7 +16,7 @@ public interface CommonService {
     ModelMapper modelMapper = new ModelMapper();
 
     default <D> D map(UserCreateDto userCreateDto, Type destination) throws AuthServiceException {
-        if(userCreateDto == null) {
+        if (userCreateDto == null) {
             return null;
         }
         try {

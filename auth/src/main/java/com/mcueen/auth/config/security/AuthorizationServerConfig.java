@@ -1,50 +1,76 @@
 package com.mcueen.auth.config.security;
 
-import com.mcueen.auth.config.security.converter.PasswordAuthenticationConverter;
-import com.mcueen.auth.config.security.model.CustomUserDetailService;
+
+import com.mcueen.auth.config.security.filter.CustomTokenFilter;
+import com.mcueen.auth.config.security.filter.RefreshTokenFilter;
+import com.mcueen.auth.config.security.filter.UsernamePasswordAuthFilter;
+import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
 import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
+import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-public class AuthorizationServerConfig extends OAuth2AuthorizationServerConfiguration {
+@Import(OAuth2AuthorizationServerConfiguration.class)
+public class AuthorizationServerConfig {
 
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    @Lazy
+    private OAuth2AuthorizationService oAuth2AuthorizationService;
 
     @Autowired
-    private CustomUserDetailService userDetailService;
+    private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
+
+    @Autowired
+    private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
+
+    @Autowired
+    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+    @Autowired
+    private UsernamePasswordAuthFilter usernamePasswordAuthFilter;
+
+    @Autowired
+    private RefreshTokenFilter refreshTokenFilter;
+
+    @Autowired
+    private CustomTokenFilter customTokenFilter;
+
 
     @Bean
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
+
+        return http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/abc").permitAll()
+                        .requestMatchers("/token").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .csrf(AbstractHttpConfigurer::disable).build();
-        OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
-        authorizationServerConfigurer.tokenGenerator(new OAuth2AccessTokenGenerator());
-        authorizationServerConfigurer.tokenEndpoint(endPoint -> {
-            endPoint.accessTokenRequestConverter(new PasswordAuthenticationConverter());
-            endPoint.authenticationProvider(new CustomPasswordAuthenticationProvider(userDetailService, passwordEncoder));
-        });
-        return super.authorizationServerSecurityFilterChain(http);
+                .addFilterAfter(usernamePasswordAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(refreshTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(customTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(exceptionHandlingConfigurer -> exceptionHandlingConfigurer
+                        .accessDeniedHandler(new AccessDeniedHandlerImpl())
+                        .authenticationEntryPoint(customAuthenticationEntryPoint))
+                .csrf(AbstractHttpConfigurer::disable)
+                .build();
     }
 
     @Bean
-    public AuthenticationManager authServerAuthenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager() {
+        return new ProviderManager(refreshTokenAuthenticationProvider, customPasswordAuthenticationProvider);
     }
 }

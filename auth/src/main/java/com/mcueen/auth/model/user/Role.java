@@ -27,5 +27,4 @@ public class Role {
     private List<RolePermission> rolePermissions;
 
 
-
 }

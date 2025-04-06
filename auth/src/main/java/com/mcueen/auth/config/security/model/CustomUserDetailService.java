@@ -31,7 +31,7 @@ public class CustomUserDetailService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         logger.info("take by username : {}", username);
         Optional<User> user = userRepository.findByEmail(username);
-        if(user.isPresent()) {
+        if (user.isPresent()) {
             User presentUser = user.get();
             List<UserRole> userRoles = rolePermissionService.getUserRolesByUserId(presentUser.getId());
             userRoles.forEach(userRole -> {

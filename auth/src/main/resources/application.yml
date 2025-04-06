@@ -1,27 +1,28 @@
 spring:
   application:
-  name: authorization.server
+    name: authorization.server
   datasource:
-    url: jdbc:postgresql://localhost:5432/authServer?createDatabaseIfNotExist=true
+    url: jdbc:postgresql://localhost:5432/authServer
     username: root
     password: root
     driver-class-name: org.postgresql.Driver
   jpa:
+    hibernate:
+      ddl-auto: update
     properties:
       hibernate:
-        ddl-auto: create
         dialect: org.hibernate.dialect.PostgreSQLDialect
     generate-ddl: true
   session:
     store-type: jdbc
 server:
   port: 8080
-  servlet:
-    context-path: /api
 logging.level:
   org:
     springframework:
-      web: TRACE
-    hibernate: INFO
-  com.mcueen.auth: TRACE
+      web: DEBUG
+      security: DEBUG
+      security.oauth2: DEBUG
 
+    hibernate: INFO
+  com.mcueen.auth: DEBUG

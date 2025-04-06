@@ -2,10 +2,14 @@ package com.mcueen.auth.config.security.model;
 
 import com.mcueen.auth.model.user.OAuth2Client;
 import com.mcueen.auth.repository.OAuth2ClientRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,6 +19,7 @@ import java.util.List;
 public class JpaRegisteredClientRepository implements RegisteredClientRepository {
 
     private final OAuth2ClientRepository clientRepository;
+    Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public JpaRegisteredClientRepository(OAuth2ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
@@ -33,13 +38,17 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
     }
 
     private RegisteredClient toRegisteredClient(OAuth2Client oauth2Client) {
+        if (oauth2Client == null) {
+            return null;
+        }
         List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
-        authorizationGrantTypeList.add(AuthorizationGrantType.PASSWORD);
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
                 .clientId(oauth2Client.getClientId())
+                .scope("read")
                 .clientSecret(oauth2Client.getClientSecret())
-                .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
+                .tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build())
+//                .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
                 .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantTypes(authorizationGrantTypes -> authorizationGrantTypes.addAll(authorizationGrantTypeList))
@@ -56,4 +65,5 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
         client.setScopes(registeredClient.getScopes());
         clientRepository.save(client);
     }
+
 }

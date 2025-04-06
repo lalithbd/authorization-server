@@ -1,41 +1,77 @@
 package com.mcueen.auth.config.security.provider;
 
-import org.springframework.security.authentication.AuthenticationProvider;
+import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientAuthenticationToken;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.Base64;
+
 @Component
-public class CustomPasswordAuthenticationProvider implements AuthenticationProvider {
+public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvider {
 
-    private final UserDetailsService userDetailsService;
-    private final PasswordEncoder passwordEncoder;
+    @Autowired
+    private RegisteredClientRepository registeredClientRepository;
 
-        public CustomPasswordAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
-        this.userDetailsService = userDetailsService;
-        this.passwordEncoder = passwordEncoder;
+    @Autowired
+    private AuthenticationProviderHelper authenticationProviderHelper;
+
+    public CustomPasswordAuthenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+        super.setUserDetailsService(userDetailsService);
+        super.setPasswordEncoder(passwordEncoder);
     }
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        String username = authentication.getName();
-        String password = authentication.getCredentials().toString();
-
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-        if (userDetails != null && passwordEncoder.matches(password, userDetails.getPassword())) {
-            return new UsernamePasswordAuthenticationToken(username, password, userDetails.getAuthorities());
+        ClientUserAuthenticationToken clientUserAuthenticationToken = (ClientUserAuthenticationToken) authentication;
+        String username = clientUserAuthenticationToken.getName();
+        String password = clientUserAuthenticationToken.getCredentials().toString();
+        String clientId = clientUserAuthenticationToken.getClientId();
+        String clientSecret = clientUserAuthenticationToken.getClientSecret();
+        RegisteredClient client = registeredClientRepository.findByClientId(clientId);
+        if (client == null) {
+            throw new BadCredentialsException("Invalid client");
+        }
+        if (!super.getPasswordEncoder().matches(clientSecret, client.getClientSecret())) {
+            throw new BadCredentialsException("Invalid client credentials");
+        }
+        UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
+        if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
+            OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authentication, client);
+            return new ClientUserAuthenticationToken(username, client, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
         }
 
-        throw new AuthenticationException("Invalid credentials") {};
+        throw new BadCredentialsException("Invalid credentials");
     }
 
     @Override
-    public boolean supports(Class<?> authentication) {
-        return OAuth2ClientAuthenticationToken.class.isAssignableFrom(authentication);
+    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) {
+
+        if (authentication.getCredentials() == null) {
+
+            throw new BadCredentialsException(this.messages
+                    .getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials",
+                            "Invalid credentials provided. Please check your username and password"));
+        }
+
+        String presentedPassword = new String(Base64.getUrlDecoder().decode(authentication.getCredentials().toString()));
+
+        if (!this.getPasswordEncoder().matches(presentedPassword, userDetails.getPassword())) {
+            throw new BadCredentialsException(this.messages
+                    .getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials",
+                            "Invalid credentials provided. Please check your username and password"));
+        }
     }
+
+
 }
