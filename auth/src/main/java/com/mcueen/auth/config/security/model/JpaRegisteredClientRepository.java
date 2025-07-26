@@ -15,8 +15,11 @@ import org.springframework.security.oauth2.server.authorization.settings.OAuth2T
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
+import static java.time.temporal.ChronoUnit.SECONDS;
 
 @Service
 public class JpaRegisteredClientRepository implements RegisteredClientRepository {
@@ -46,9 +49,12 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
         return RegisteredClient.withId(String.valueOf(oauth2Client.getId()))
                 .clientId(oauth2Client.getClientId())
-                .scope("read")
                 .clientSecret(oauth2Client.getClientSecret())
-                .tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build())
+                .tokenSettings(TokenSettings.builder()
+                                .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
+                        .accessTokenTimeToLive(Duration.of(oauth2Client.getAccessTokenTimeToLive(), SECONDS))
+                        .refreshTokenTimeToLive(Duration.of(oauth2Client.getRefreshTokenTimeToLive(), SECONDS))
+                        .build())
                 .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
                 .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)

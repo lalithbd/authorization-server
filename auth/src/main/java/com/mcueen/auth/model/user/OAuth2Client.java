@@ -22,4 +22,7 @@ public class OAuth2Client {
     private Set<String> redirectUris;
     private Set<String> scopes;
     private Set<String> grantTypes;
+    private Set<String> permissions;
+    private Long accessTokenTimeToLive;
+    private Long refreshTokenTimeToLive;
 }

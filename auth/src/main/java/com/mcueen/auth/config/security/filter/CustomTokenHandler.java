@@ -1,27 +1,30 @@
 package com.mcueen.auth.config.security.filter;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
-import com.mcueen.auth.model.user.OAuth2TokenEntity;
-import com.mcueen.auth.service.JpaTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 public class CustomTokenHandler extends OncePerRequestFilter {
 
-    private final JpaTokenService jpaTokenService;
+    private final OAuth2AuthorizationService oAuth2AuthorizationService;
 
-    public CustomTokenHandler(JpaTokenService jpaTokenService) {
-        this.jpaTokenService = jpaTokenService;
+    public CustomTokenHandler(OAuth2AuthorizationService oAuth2AuthorizationService) {
+        this.oAuth2AuthorizationService = oAuth2AuthorizationService;
     }
 
     @Override
@@ -34,12 +37,14 @@ public class CustomTokenHandler extends OncePerRequestFilter {
             return;
         }
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            OAuth2TokenEntity auth2TokenEntity = jpaTokenService.findByToken(token);
-            if (auth2TokenEntity != null && !auth2TokenEntity.isRevoked() && auth2TokenEntity.getExpiresAt().isBefore(Instant.now())) {
-                ClientUserAuthenticationToken authentication = new ClientUserAuthenticationToken(token);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                List<GrantedAuthority> authorities = jpaTokenService.getAuthorities(auth2TokenEntity);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            OAuth2Authorization oAuth2Authorization = oAuth2AuthorizationService.findByToken(token, OAuth2TokenType.ACCESS_TOKEN);
+            if (oAuth2Authorization != null) {
+                OAuth2AccessToken accessToken = oAuth2Authorization.getAccessToken().getToken();
+                if (accessToken != null && Objects.requireNonNull(accessToken.getExpiresAt()).isAfter(Instant.now())) {
+                    ClientUserAuthenticationToken authentication = new ClientUserAuthenticationToken(token);
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
 

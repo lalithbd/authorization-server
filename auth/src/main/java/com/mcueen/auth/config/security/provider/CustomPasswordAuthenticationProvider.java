@@ -35,7 +35,7 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         String clientId = clientUserAuthenticationToken.getClientId();
         String clientSecret = clientUserAuthenticationToken.getClientSecret();
         RegisteredClient client = registeredClientRepository.findByClientId(clientId);
-        if(client == null) {
+        if (client == null) {
             throw new BadCredentialsException("Invalid client");
         }
         if (!super.getPasswordEncoder().matches(clientSecret, client.getClientSecret())) {
@@ -43,7 +43,7 @@ public class CustomPasswordAuthenticationProvider extends DaoAuthenticationProvi
         }
         UserDetails userDetails = super.getUserDetailsService().loadUserByUsername(username);
         if (userDetails != null && super.getPasswordEncoder().matches(password, userDetails.getPassword())) {
-            return new ClientUserAuthenticationToken(username, password, null, client);
+            return new ClientUserAuthenticationToken(username, null, null, client);
         }
 
         throw new BadCredentialsException("Invalid credentials");
