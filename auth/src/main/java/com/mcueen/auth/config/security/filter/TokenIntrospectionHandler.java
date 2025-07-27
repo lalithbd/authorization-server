@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class TokenIntrospectionFilter extends OncePerRequestFilter {
+public class TokenIntrospectionHandler extends OncePerRequestFilter {
 
     private final OAuth2AuthorizationServiceImpl oAuth2AuthorizationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -30,7 +29,7 @@ public class TokenIntrospectionFilter extends OncePerRequestFilter {
     @Autowired
     private RegisteredClientRepository registeredClientRepository;
 
-    public TokenIntrospectionFilter(OAuth2AuthorizationServiceImpl oAuth2AuthorizationService) {
+    public TokenIntrospectionHandler(OAuth2AuthorizationServiceImpl oAuth2AuthorizationService) {
         this.oAuth2AuthorizationService = oAuth2AuthorizationService;
     }
 

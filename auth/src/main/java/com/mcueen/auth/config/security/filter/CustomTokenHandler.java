@@ -41,13 +41,12 @@ public class CustomTokenHandler extends OncePerRequestFilter {
             if (oAuth2Authorization != null) {
                 OAuth2AccessToken accessToken = oAuth2Authorization.getAccessToken().getToken();
                 if (accessToken != null && Objects.requireNonNull(accessToken.getExpiresAt()).isAfter(Instant.now())) {
-                    ClientUserAuthenticationToken authentication = new ClientUserAuthenticationToken(token);
+                    ClientUserAuthenticationToken authentication = new ClientUserAuthenticationToken(oAuth2Authorization.getPrincipalName());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
         }
-
         chain.doFilter(request, response);
     }
 

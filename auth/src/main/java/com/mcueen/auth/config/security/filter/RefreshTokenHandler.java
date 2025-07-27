@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,13 +24,18 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+@Component
 public class RefreshTokenHandler extends OncePerRequestFilter {
+
+    @Autowired
+    private AuthenticationFilterHelper authenticationFilterHelper;
 
     private final AuthenticationManager authenticationManager;
     private final ObjectMapper objectMapper;
@@ -56,54 +62,10 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
         try {
             Map<String, String> loginRequest = objectMapper.readValue(request.getInputStream(), new TypeReference<>() {});
             String refreshTokenString = loginRequest.get("refreshToken");
-            ClientUserAuthenticationToken authentication = (ClientUserAuthenticationToken) authenticationManager.authenticate(
+            OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(
                     new RefreshTokenAuthenticationToken(null, refreshTokenString));
-
-            // Set authentication in security context
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext.builder()
-                    .tokenType(OAuth2TokenType.ACCESS_TOKEN)  // Requesting an access token
-                    .principal(authentication)  // Authenticated user
-                    .registeredClient(authentication.getRegisteredClient())  // OAuth2 client details
-                    .authorizedScopes(Set.of("read", "write"))  // Define scopes
-                    .build();
-            OAuth2Token oAuth2Token = tokenGenerator.generate(tokenContext);
-            if(oAuth2Token == null) {
-                response.getWriter().write("{\"error\": \"Invalid username or password\"}");
-                return;
-            }
-            OAuth2AccessToken accessToken = new OAuth2AccessToken(
-                    OAuth2AccessToken.TokenType.BEARER,
-                    oAuth2Token.getTokenValue(),
-                    oAuth2Token.getIssuedAt(),
-                    oAuth2Token.getExpiresAt(),
-                    tokenContext.getAuthorizedScopes()
-            );
-            tokenContext = DefaultOAuth2TokenContext.builder()
-                    .tokenType(OAuth2TokenType.REFRESH_TOKEN)  // Requesting an access token
-                    .principal(authentication)  // Authenticated user
-                    .registeredClient(authentication.getRegisteredClient())  // OAuth2 client details
-                    .authorizedScopes(Set.of("read", "write"))  // Define scopes
-                    .build();
-            OAuth2Token refreshToken = tokenGenerator.generate(tokenContext);
-            OAuth2AccessTokenResponse.Builder builder = OAuth2AccessTokenResponse
-                    .withToken(accessToken.getTokenValue())
-                    .tokenType(OAuth2AccessToken.TokenType.BEARER)
-                    .refreshToken(refreshToken != null ? refreshToken.getTokenValue() : null)
-                    .scopes(tokenContext.getAuthorizedScopes())
-                    .expiresIn(ChronoUnit.SECONDS.between((Objects.requireNonNull(accessToken.getIssuedAt())), accessToken.getExpiresAt()));
-
-            OAuth2Authorization auth2Authorization = OAuth2Authorization
-                    .withRegisteredClient(authentication.getRegisteredClient())
-                    .token(oAuth2Token)
-                    .token(refreshToken)
-                    .principalName(authentication.getName())
-                    .authorizedScopes(tokenContext.getAuthorizedScopes())
-                    .build();
-            oAuth2AuthorizationService.save(auth2Authorization);
-
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
-            this.accessTokenResponseConverter.write(builder.build(), null, httpResponse);
+            this.accessTokenResponseConverter.write(auth2AccessTokenResponse, null, httpResponse);
 
 
         } catch (AuthenticationException e) {

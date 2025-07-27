@@ -4,6 +4,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 
 import java.util.Collection;
@@ -15,6 +18,8 @@ public class ClientUserAuthenticationToken extends UsernamePasswordAuthenticatio
     private String clientId;
     private String clientSecret;
     private RegisteredClient registeredClient;
+    private OAuth2AccessToken accessToken;
+    private OAuth2RefreshToken refreshToken;
 
     public ClientUserAuthenticationToken(Object principal, Object credentials, String clientId, String clientSecret) {
         super(principal, credentials);
@@ -22,12 +27,14 @@ public class ClientUserAuthenticationToken extends UsernamePasswordAuthenticatio
         this.clientSecret = clientSecret;
     }
 
-    public ClientUserAuthenticationToken(Object principal, Object credentials, Collection<? extends GrantedAuthority> authorities, RegisteredClient registeredClient) {
-        super(principal, credentials, authorities);
-        this.registeredClient = registeredClient;
-    }
-
     public ClientUserAuthenticationToken(Object principal) {
         super(principal, null, null);
+    }
+
+    public ClientUserAuthenticationToken(String username, RegisteredClient client, OAuth2Authorization.Token<OAuth2AccessToken> accessToken, OAuth2Authorization.Token<OAuth2RefreshToken> refreshToken) {
+        super(username, null, null);
+        this.registeredClient = client;
+        this.refreshToken = refreshToken.getToken();
+        this.accessToken = accessToken.getToken();
     }
 }

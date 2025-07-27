@@ -3,25 +3,31 @@ package com.mcueen.auth.config.security;
 
 import com.mcueen.auth.config.security.filter.CustomTokenHandler;
 import com.mcueen.auth.config.security.filter.RefreshTokenHandler;
-import com.mcueen.auth.config.security.filter.TokenIntrospectionFilter;
+import com.mcueen.auth.config.security.filter.TokenIntrospectionHandler;
 import com.mcueen.auth.config.security.filter.UsernamePasswordAuthHandler;
-import com.mcueen.auth.config.security.model.CustomUserDetailService;
 import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
+import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
 import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
 import com.mcueen.auth.service.impl.OAuth2AuthorizationServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.oauth2.server.authorization.token.*;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2RefreshTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -29,13 +35,27 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class AuthorizationServerConfig {
 
     @Autowired
-    private CustomUserDetailService userDetailService;
-
-    @Autowired
-    private OAuth2AuthorizationServiceImpl jpaTokenService;
+    @Lazy
+    private OAuth2AuthorizationService oAuth2AuthorizationService;
 
     @Autowired
     private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
+
+    @Autowired
+    private OAuth2AuthorizationServiceImpl jpaTokenService;
+    private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
+
+    @Autowired
+    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+    @Autowired
+    private UsernamePasswordAuthFilter usernamePasswordAuthFilter;
+
+    @Autowired
+    private RefreshTokenFilter refreshTokenFilter;
+
+    @Autowired
+    private CustomTokenFilter customTokenFilter;
 
     @Autowired
     private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
@@ -53,7 +73,13 @@ public class AuthorizationServerConfig {
                 .addFilterAfter(new UsernamePasswordAuthHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new RefreshTokenHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(new CustomTokenHandler(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new TokenIntrospectionFilter(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new TokenIntrospectionHandler(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(usernamePasswordAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(refreshTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(customTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(exceptionHandlingConfigurer -> exceptionHandlingConfigurer
+                        .accessDeniedHandler(new AccessDeniedHandlerImpl())
+                        .authenticationEntryPoint(customAuthenticationEntryPoint))
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
     }
