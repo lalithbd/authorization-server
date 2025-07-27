@@ -19,24 +19,13 @@ public class UserController {
     private UserService userService;
 
 
-    @PostMapping(value = "/signup")
+    @PostMapping(value = "/sign-up")
     public ResponseEntity<?> create(@RequestBody UserCreateDto userCreateDto) throws AuthServiceException {
-        User user = userService.map(userCreateDto, User.class);
+        User user = userService.mapUser(userCreateDto);
         userService.create(user);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
-//    @PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE)
-//    public ResponseEntity<?> login(@RequestBody LoginDto loginDto, HttpServletRequest request, HttpServletResponse response) throws AuthServiceException {
-//        UsernamePasswordAuthenticationToken authenticationToken = UsernamePasswordAuthenticationToken.unauthenticated(loginDto.getEmail(), loginDto.getPassword());
-//        Authentication authentication = authenticationManager.authenticate(authenticationToken);
-//        try {
-//            successHandler.onAuthenticationSuccess(request, response, authentication);
-//        } catch (IOException | ServletException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return new ResponseEntity<>(HttpStatus.OK);
-//    }
 
     @GetMapping
     public ResponseEntity<?> getAll() {

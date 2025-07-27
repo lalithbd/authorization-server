@@ -55,7 +55,7 @@ public class AuthorizationServerConfig {
 
         return http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/token").permitAll()
+                        .requestMatchers("/token", "/users/sign-up").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
