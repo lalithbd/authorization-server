@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -21,17 +22,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@Component
 public class TokenIntrospectionHandler extends OncePerRequestFilter {
 
-    private final OAuth2AuthorizationServiceImpl oAuth2AuthorizationService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private OAuth2AuthorizationServiceImpl oAuth2AuthorizationService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private RegisteredClientRepository registeredClientRepository;
-
-    public TokenIntrospectionHandler(OAuth2AuthorizationServiceImpl oAuth2AuthorizationService) {
-        this.oAuth2AuthorizationService = oAuth2AuthorizationService;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)

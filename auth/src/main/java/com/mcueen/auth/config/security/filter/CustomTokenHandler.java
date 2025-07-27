@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
+@Component
 public class CustomTokenHandler extends OncePerRequestFilter {
 
     private final OAuth2AuthorizationService oAuth2AuthorizationService;

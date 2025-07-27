@@ -35,27 +35,22 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class AuthorizationServerConfig {
 
     @Autowired
-    @Lazy
-    private OAuth2AuthorizationService oAuth2AuthorizationService;
-
-    @Autowired
     private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
 
     @Autowired
-    private OAuth2AuthorizationServiceImpl jpaTokenService;
-    private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
+    private RefreshTokenHandler refreshTokenHandler;
+
+    @Autowired
+    private UsernamePasswordAuthHandler usernamePasswordAuthHandler;
+
+    @Autowired
+    private CustomTokenHandler customTokenHandler;
+
+    @Autowired
+    private TokenIntrospectionHandler tokenIntrospectionHandler;
 
     @Autowired
     private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-
-    @Autowired
-    private UsernamePasswordAuthFilter usernamePasswordAuthFilter;
-
-    @Autowired
-    private RefreshTokenFilter refreshTokenFilter;
-
-    @Autowired
-    private CustomTokenFilter customTokenFilter;
 
     @Autowired
     private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
@@ -70,13 +65,10 @@ public class AuthorizationServerConfig {
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .addFilterAfter(new UsernamePasswordAuthHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new RefreshTokenHandler(authenticationManager, jpaTokenService, tokenGenerator), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new CustomTokenHandler(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new TokenIntrospectionHandler(jpaTokenService), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(usernamePasswordAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(refreshTokenFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(customTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(usernamePasswordAuthHandler, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(refreshTokenHandler, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(customTokenHandler, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(tokenIntrospectionHandler, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(exceptionHandlingConfigurer -> exceptionHandlingConfigurer
                         .accessDeniedHandler(new AccessDeniedHandlerImpl())
                         .authenticationEntryPoint(customAuthenticationEntryPoint))

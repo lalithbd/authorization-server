@@ -37,18 +37,11 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
     @Autowired
     private AuthenticationFilterHelper authenticationFilterHelper;
 
-    private final AuthenticationManager authenticationManager;
-    private final ObjectMapper objectMapper;
-    private final OAuth2TokenGenerator<?> tokenGenerator;
-    private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
-    private final OAuth2AuthorizationService oAuth2AuthorizationService;
+    @Autowired
+    private ObjectMapper objectMapper;
 
-    public RefreshTokenHandler(AuthenticationManager authenticationManager, OAuth2AuthorizationService oAuth2AuthorizationService, OAuth2TokenGenerator<?> auth2TokenGenerator) {
-        this.authenticationManager = authenticationManager;
-        this.objectMapper = new ObjectMapper();
-        this.oAuth2AuthorizationService = oAuth2AuthorizationService;
-        this.tokenGenerator = auth2TokenGenerator;
-    }
+    private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
