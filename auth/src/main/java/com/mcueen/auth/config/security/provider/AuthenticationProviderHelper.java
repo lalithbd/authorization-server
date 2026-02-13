@@ -33,10 +33,11 @@ public class AuthenticationProviderHelper {
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
                 .principal(authentication)
                 .registeredClient(client)
+                .authorizedScopes(client.getScopes())
                 .build();
         OAuth2AccessToken accessToken = (OAuth2AccessToken) tokenGenerator.generate(tokenContext);
         if (accessToken != null) {
-            accessToken = convertRefreshToken(accessToken);
+            accessToken = convertRefreshToken(accessToken, client.getScopes());
         }
         tokenContext = DefaultOAuth2TokenContext.builder()
                 .tokenType(OAuth2TokenType.REFRESH_TOKEN)
@@ -58,13 +59,13 @@ public class AuthenticationProviderHelper {
         return auth2Authorization;
     }
 
-    private OAuth2AccessToken convertRefreshToken(OAuth2AccessToken accessToken) {
+    private OAuth2AccessToken convertRefreshToken(OAuth2AccessToken accessToken, Set<String> scopes) {
         return new OAuth2AccessToken(
                 OAuth2AccessToken.TokenType.BEARER,
                 accessToken.getTokenValue(),
                 accessToken.getIssuedAt(),
                 accessToken.getExpiresAt(),
-                accessToken.getScopes()
+                scopes
         );
     }
 }
