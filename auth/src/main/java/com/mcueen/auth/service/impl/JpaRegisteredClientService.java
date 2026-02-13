@@ -1,9 +1,7 @@
-package com.mcueen.auth.config.security.model;
+package com.mcueen.auth.service.impl;
 
 import com.mcueen.auth.model.user.OAuth2Client;
 import com.mcueen.auth.repository.OAuth2ClientRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -19,12 +17,11 @@ import java.util.List;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 @Service
-public class JpaRegisteredClientRepository implements RegisteredClientRepository {
+public class JpaRegisteredClientService implements RegisteredClientRepository {
 
     private final OAuth2ClientRepository clientRepository;
-    Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public JpaRegisteredClientRepository(OAuth2ClientRepository clientRepository) {
+    public JpaRegisteredClientService(OAuth2ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
     }
 
@@ -50,7 +47,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
                 .clientId(oauth2Client.getClientId())
                 .clientSecret(oauth2Client.getClientSecret())
                 .tokenSettings(TokenSettings.builder()
-                                .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
+                        .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
                         .accessTokenTimeToLive(Duration.of(oauth2Client.getAccessTokenTimeToLive(), SECONDS))
                         .refreshTokenTimeToLive(Duration.of(oauth2Client.getRefreshTokenTimeToLive(), SECONDS))
                         .build())

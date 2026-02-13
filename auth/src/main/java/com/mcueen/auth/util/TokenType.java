@@ -3,5 +3,7 @@ package com.mcueen.auth.util;
 public enum TokenType {
     BEARER,
     ACCESS,
-    REFRESH
+    REFRESH,
+    AUTHORIZATION_CODE,
+
 }

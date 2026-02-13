@@ -33,7 +33,6 @@ public class AuthenticationProviderHelper {
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
                 .principal(authentication)
                 .registeredClient(client)
-                .authorizedScopes(Set.of("read", "write"))
                 .build();
         OAuth2AccessToken accessToken = (OAuth2AccessToken) tokenGenerator.generate(tokenContext);
         if (accessToken != null) {
@@ -43,6 +42,7 @@ public class AuthenticationProviderHelper {
                 .tokenType(OAuth2TokenType.REFRESH_TOKEN)
                 .principal(authentication)
                 .registeredClient(client)
+                .authorizedScopes(client.getScopes())
                 .build();
 
         OAuth2RefreshToken refreshToken = (OAuth2RefreshToken) tokenGenerator.generate(tokenContext);
@@ -51,7 +51,7 @@ public class AuthenticationProviderHelper {
                 .token(accessToken, metadata -> metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, "access_token"))
                 .token(refreshToken)
                 .principalName(authentication.getName())
-                .authorizedScopes(tokenContext.getAuthorizedScopes())
+                .authorizedScopes(client.getScopes())
                 .authorizationGrantType(AuthorizationGrantType.PASSWORD)
                 .build();
         oAuth2AuthorizationService.save(auth2Authorization);

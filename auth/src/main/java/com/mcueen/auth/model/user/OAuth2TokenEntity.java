@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -28,7 +29,6 @@ public class OAuth2TokenEntity {
     private Instant issuedAt;
     private Instant expiresAt;
     private boolean isRevoked;
-
-    @Column(columnDefinition = "TEXT[]")
-    private List<String> scopes;
+    private Set<String> scopes;
+    private String grantType;
 }
