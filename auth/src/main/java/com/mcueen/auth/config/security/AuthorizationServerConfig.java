@@ -81,7 +81,7 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings providerSettings() {
         return AuthorizationServerSettings.builder()
-                .tokenEndpoint("/token")
+                .tokenEndpoint("/auth/token")
                 .tokenIntrospectionEndpoint("/auth/introspect")
                 .build();
     }
