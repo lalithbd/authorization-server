@@ -21,6 +21,15 @@ public class User {
     private String lastname;
     private String email;
     private String password;
+    
+    @Column(name = "oauth_provider")
+    private String oauthProvider; // "google", "microsoft", "facebook", etc.
+    
+    @Column(name = "oauth_provider_id")
+    private String oauthProviderId; // Provider's user ID
+    
+    @Column(name = "auth_method")
+    private String authMethod; // "EMAIL", "OAUTH", "BOTH"
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonManagedReference

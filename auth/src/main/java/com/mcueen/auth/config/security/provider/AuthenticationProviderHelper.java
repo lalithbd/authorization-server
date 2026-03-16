@@ -29,6 +29,10 @@ public class AuthenticationProviderHelper {
     private OAuth2AuthorizationService oAuth2AuthorizationService;
 
     public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client) {
+        return getOAuth2Authorization(authentication, client, AuthorizationGrantType.PASSWORD);
+    }
+
+    public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client, AuthorizationGrantType grantType) {
         OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext.builder()
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
                 .principal(authentication)
@@ -53,7 +57,7 @@ public class AuthenticationProviderHelper {
                 .token(refreshToken)
                 .principalName(authentication.getName())
                 .authorizedScopes(client.getScopes())
-                .authorizationGrantType(AuthorizationGrantType.PASSWORD)
+                .authorizationGrantType(grantType)
                 .build();
         oAuth2AuthorizationService.save(auth2Authorization);
         return auth2Authorization;

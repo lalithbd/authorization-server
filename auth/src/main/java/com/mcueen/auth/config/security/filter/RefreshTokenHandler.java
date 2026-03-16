@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
+import com.mcueen.auth.util.auth.AuthConstants;
+import com.mcueen.auth.util.auth.AuthEndpoints;
+import com.mcueen.auth.util.auth.AuthErrorMessages;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,14 +50,14 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!"/auth/refresh".equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
+        if (!AuthEndpoints.REFRESH.equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }
 
         try {
             Map<String, String> loginRequest = objectMapper.readValue(request.getInputStream(), new TypeReference<>() {});
-            String refreshTokenString = loginRequest.get("refreshToken");
+            String refreshTokenString = loginRequest.get(AuthConstants.FIELD_REFRESH_TOKEN);
             OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(
                     new RefreshTokenAuthenticationToken(null, refreshTokenString));
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
@@ -63,7 +66,7 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
 
         } catch (AuthenticationException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"error\": \"Invalid username or password\"}");
+            response.getWriter().write(AuthErrorMessages.INVALID_CREDENTIALS_JSON);
         }
     }
 }

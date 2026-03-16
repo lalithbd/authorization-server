@@ -8,6 +8,8 @@ import lombok.Setter;
 @Setter
 public class LoginDto {
 
+    private String provider; // "email", "google", "microsoft", "facebook", etc.
     private String email;
-    private String password;
+    private String password; // For email provider
+    private String token; // For OAuth providers (ID token or access token)
 }

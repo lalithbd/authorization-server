@@ -2,6 +2,7 @@ package com.mcueen.auth.config.security.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.config.security.model.UnAuthorizedResponse;
+import com.mcueen.auth.util.auth.AuthErrorMessages;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
         UnAuthorizedResponse authorizedResponse = UnAuthorizedResponse.builder()
                 .status(String.valueOf(HttpStatus.UNAUTHORIZED.value()))
-                .message("Invalid authorization").build();
+                .message(AuthErrorMessages.INVALID_AUTHORIZATION).build();
         response.getOutputStream().write(objectMapper.writeValueAsString(authorizedResponse).getBytes(StandardCharsets.UTF_8));
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
     }

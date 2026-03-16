@@ -1,6 +1,7 @@
 package com.mcueen.auth.config.security.filter;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.util.auth.AuthConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,7 +54,7 @@ public class CustomTokenHandler extends OncePerRequestFilter {
     }
 
     private String extractToken(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        return (header != null && header.startsWith("Bearer ")) ? header.substring(7) : null;
+        String header = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
+        return (header != null && header.startsWith(AuthConstants.BEARER_PREFIX)) ? header.substring(AuthConstants.BEARER_PREFIX_LENGTH) : null;
     }
 }

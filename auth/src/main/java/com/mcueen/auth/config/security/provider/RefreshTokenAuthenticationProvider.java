@@ -2,6 +2,7 @@ package com.mcueen.auth.config.security.provider;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
+import com.mcueen.auth.util.auth.AuthErrorMessages;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -52,7 +53,7 @@ public class RefreshTokenAuthenticationProvider extends AbstractUserDetailsAuthe
                 return new ClientUserAuthenticationToken(oAuth2Authorization.getPrincipalName(), client, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
             }
         }
-        throw new BadCredentialsException("Invalid refresh token");
+        throw new BadCredentialsException(AuthErrorMessages.INVALID_REFRESH_TOKEN);
     }
 
     @Override

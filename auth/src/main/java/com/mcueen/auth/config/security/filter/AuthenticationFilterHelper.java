@@ -1,6 +1,7 @@
 package com.mcueen.auth.config.security.filter;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.util.auth.AuthErrorMessages;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -26,14 +27,14 @@ public class AuthenticationFilterHelper {
     public OAuth2AccessTokenResponse buildOAuth2AccessTokenResponse(Authentication authentication) {
         ClientUserAuthenticationToken authenticated = (ClientUserAuthenticationToken) authenticationManager.authenticate(authentication);
         if (authentication == null) {
-            log.error("NUll authentication object");
-            throw new NullPointerException("NUll authentication object");
+            log.error(AuthErrorMessages.NULL_AUTHENTICATION);
+            throw new NullPointerException(AuthErrorMessages.NULL_AUTHENTICATION);
         }
         OAuth2AccessToken accessToken = authenticated.getAccessToken();
         OAuth2RefreshToken refreshToken = authenticated.getRefreshToken();
         if (accessToken == null || refreshToken == null) {
-            log.error("NUll authentication object");
-            throw new NullPointerException("NUll authentication object");
+            log.error(AuthErrorMessages.NULL_AUTHENTICATION);
+            throw new NullPointerException(AuthErrorMessages.NULL_AUTHENTICATION);
         }
         SecurityContextHolder.getContext().setAuthentication(authentication);
         OAuth2AccessTokenResponse.Builder builder = OAuth2AccessTokenResponse

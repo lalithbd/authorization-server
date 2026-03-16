@@ -3,8 +3,9 @@ package com.mcueen.auth.config.security.filter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
-import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
-import com.mcueen.auth.service.impl.OAuth2AuthorizationServiceImpl;
+import com.mcueen.auth.util.auth.AuthConstants;
+import com.mcueen.auth.util.auth.AuthEndpoints;
+import com.mcueen.auth.util.auth.AuthErrorMessages;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -52,7 +53,7 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!"/auth/login".equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
+        if (!AuthEndpoints.LOGIN.equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }
@@ -60,19 +61,24 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
         try {
             Map<String, String> loginRequest = objectMapper.readValue(request.getInputStream(), new TypeReference<>() {
             });
-            String username = loginRequest.get("username");
-            String password = loginRequest.get("password");
-            String authHeader = request.getHeader("Authorization");
+            String provider = loginRequest.getOrDefault(AuthConstants.FIELD_PROVIDER, AuthConstants.PROVIDER_EMAIL);
+            String username = loginRequest.get(AuthConstants.FIELD_EMAIL);
+            String credential = provider.equalsIgnoreCase(AuthConstants.PROVIDER_EMAIL) ? loginRequest.get(AuthConstants.FIELD_PASSWORD) : loginRequest.get(AuthConstants.FIELD_TOKEN);
+                
+            String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
             if(authHeader == null) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\": \"Invalid Client credentials\"}");
+                response.getWriter().write(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS_JSON);
                 return;
             }
-            String base64Credentials = authHeader.substring(6);
+            String base64Credentials = authHeader.substring(AuthConstants.BASIC_PREFIX_LENGTH);
             String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
             String[] parts = credentials.split(":", 2);
-            OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(
-                    new ClientUserAuthenticationToken(username, password, parts[0], parts[1]));
+            
+            ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(username, credential, parts[0], parts[1]);
+            authToken.setDetails(provider);
+            
+            OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(authToken);
 
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
             this.accessTokenResponseConverter.write(auth2AccessTokenResponse, null, httpResponse);
@@ -80,7 +86,7 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
 
         } catch (AuthenticationException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("{\"error\": \"Invalid username or password\"}");
+            response.getWriter().write(AuthErrorMessages.INVALID_CREDENTIALS_JSON);
         }
     }
 }

@@ -6,8 +6,9 @@ import com.mcueen.auth.config.security.filter.RefreshTokenHandler;
 import com.mcueen.auth.config.security.filter.TokenIntrospectionHandler;
 import com.mcueen.auth.config.security.filter.UsernamePasswordAuthHandler;
 import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
-import com.mcueen.auth.config.security.provider.CustomPasswordAuthenticationProvider;
+import com.mcueen.auth.config.security.provider.FederatedAuthenticationProvider;
 import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
+import com.mcueen.auth.util.auth.AuthEndpoints;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,7 +51,7 @@ public class AuthorizationServerConfig {
     private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     @Autowired
-    private CustomPasswordAuthenticationProvider customPasswordAuthenticationProvider;
+    private FederatedAuthenticationProvider federatedAuthenticationProvider;
 
 
     @Bean
@@ -58,7 +59,7 @@ public class AuthorizationServerConfig {
 
         return http
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/auth/token", "/auth/introspect").permitAll()
+                        .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.INTROSPECT).permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -75,14 +76,14 @@ public class AuthorizationServerConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return new ProviderManager(customPasswordAuthenticationProvider, refreshTokenAuthenticationProvider);
+        return new ProviderManager(federatedAuthenticationProvider, refreshTokenAuthenticationProvider);
     }
 
     @Bean
     public AuthorizationServerSettings providerSettings() {
         return AuthorizationServerSettings.builder()
-                .tokenEndpoint("/auth/token")
-                .tokenIntrospectionEndpoint("/auth/introspect")
+                .tokenEndpoint(AuthEndpoints.TOKEN)
+                .tokenIntrospectionEndpoint(AuthEndpoints.INTROSPECT)
                 .build();
     }
 
