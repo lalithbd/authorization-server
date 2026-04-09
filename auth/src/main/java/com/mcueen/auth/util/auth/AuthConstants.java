@@ -22,7 +22,7 @@ public final class AuthConstants {
 
     // Request Fields
     public static final String FIELD_PROVIDER = "provider";
-    public static final String FIELD_EMAIL = "email";
+    public static final String FIELD_USERNAME = "username";
     public static final String FIELD_PASSWORD = "password";
     public static final String FIELD_TOKEN = "token";
     public static final String FIELD_REFRESH_TOKEN = "refreshToken";

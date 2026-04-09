@@ -19,7 +19,7 @@ public class UserController {
     private UserService userService;
 
 
-    @PostMapping(value = "/signup")
+    @PostMapping(value = "/sign-up")
     public ResponseEntity<?> create(@RequestBody UserCreateDto userCreateDto) throws AuthServiceException {
         User user = userService.map(userCreateDto, User.class);
         userService.create(user);

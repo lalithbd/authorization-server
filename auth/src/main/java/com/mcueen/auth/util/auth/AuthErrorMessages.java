@@ -10,7 +10,6 @@ public final class AuthErrorMessages {
     public static final String INVALID_AUTHORIZATION = "Invalid authorization";
     public static final String INVALID_REFRESH_TOKEN = "Invalid refresh token";
     public static final String EMAIL_NOT_VERIFIED = "Email not verified";
-    public static final String USER_NOT_FOUND = "User not found";
     public static final String NULL_AUTHENTICATION = "Null authentication object";
 
     public static final String INVALID_CREDENTIALS_JSON = "{\"error\": \"Invalid username or password\"}";

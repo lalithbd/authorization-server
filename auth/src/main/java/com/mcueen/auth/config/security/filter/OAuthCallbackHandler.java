@@ -2,6 +2,7 @@ package com.mcueen.auth.config.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.controller.dto.OAuthCallbackDto;
+import com.mcueen.auth.config.security.model.UnAuthorizedResponse;
 import com.mcueen.auth.service.AuthProviderService;
 import com.mcueen.auth.util.auth.AuthConstants;
 import com.mcueen.auth.util.auth.AuthEndpoints;
@@ -11,6 +12,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.core.AuthenticationException;
@@ -65,7 +67,12 @@ public class OAuthCallbackHandler extends OncePerRequestFilter {
 
         } catch (AuthenticationException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write(AuthErrorMessages.INVALID_CREDENTIALS_JSON);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            UnAuthorizedResponse errorResponse = UnAuthorizedResponse.builder()
+                    .status(String.valueOf(HttpServletResponse.SC_UNAUTHORIZED))
+                    .message(e.getMessage())
+                    .build();
+            response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
         }
     }
 }
