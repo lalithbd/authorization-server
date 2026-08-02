@@ -1,0 +1,72 @@
+package com.mcueen.auth.service.impl;
+
+import com.mcueen.auth.model.user.OAuth2Client;
+import com.mcueen.auth.repository.OAuth2ClientRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.time.temporal.ChronoUnit.SECONDS;
+
+@Service
+public class JpaRegisteredClientService implements RegisteredClientRepository {
+
+    private final OAuth2ClientRepository clientRepository;
+
+    public JpaRegisteredClientService(OAuth2ClientRepository clientRepository) {
+        this.clientRepository = clientRepository;
+    }
+
+    @Override
+    public RegisteredClient findById(String id) {
+        OAuth2Client oauth2Client = clientRepository.findById(Long.valueOf(id)).orElseThrow();
+        return toRegisteredClient(oauth2Client);
+    }
+
+    @Override
+    public RegisteredClient findByClientId(String clientId) {
+        OAuth2Client oauth2Client = clientRepository.findByClientId(clientId);
+        return toRegisteredClient(oauth2Client);
+    }
+
+    private RegisteredClient toRegisteredClient(OAuth2Client oauth2Client) {
+        if (oauth2Client == null) {
+            return null;
+        }
+        List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
+        oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
+        return RegisteredClient.withId(oauth2Client.getClientId())
+                .clientId(oauth2Client.getClientId())
+                .clientSecret(oauth2Client.getClientSecret())
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenFormat(OAuth2TokenFormat.REFERENCE)
+                        .accessTokenTimeToLive(Duration.of(oauth2Client.getAccessTokenTimeToLive(), SECONDS))
+                        .refreshTokenTimeToLive(Duration.of(oauth2Client.getRefreshTokenTimeToLive(), SECONDS))
+                        .build())
+                .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
+                .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .authorizationGrantTypes(authorizationGrantTypes -> authorizationGrantTypes.addAll(authorizationGrantTypeList))
+                .build();
+    }
+
+    @Override
+    public void save(RegisteredClient registeredClient) {
+        OAuth2Client client = new OAuth2Client();
+        client.setId(Long.valueOf(registeredClient.getId()));
+        client.setClientId(registeredClient.getClientId());
+        client.setClientSecret(registeredClient.getClientSecret());
+        client.setRedirectUris(registeredClient.getRedirectUris());
+        client.setScopes(registeredClient.getScopes());
+        clientRepository.save(client);
+    }
+
+}
