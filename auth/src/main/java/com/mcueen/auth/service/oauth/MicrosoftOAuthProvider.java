@@ -8,35 +8,45 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Set;
+
 @Service
 public class MicrosoftOAuthProvider implements OAuthProvider {
+
+    /**
+     * {@code {tenantid}} is substituted with the token's own {@code tid} claim during validation,
+     * which is how Microsoft documents the issuer for multi-tenant applications.
+     */
+    private static final Set<String> ISSUERS = Set.of("https://login.microsoftonline.com/{tenantid}/v2.0");
+    private static final String JWKS_URI = "https://login.microsoftonline.com/common/discovery/v2.0/keys";
 
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private IdTokenVerifier idTokenVerifier;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Expects an ID token, not a Graph access token.
+     * <p>
+     * The previous implementation called Graph {@code /me} with whatever token it was handed and
+     * trusted the answer. A Graph access token has Graph as its audience, so nothing in it binds
+     * it to this application — any token from any Microsoft app with Graph access would have
+     * authenticated its bearer here. An ID token carries our client id in {@code aud}, which is
+     * what makes verification possible.
+     */
     @Override
-    public OAuthUserInfo validateToken(String accessToken) {
-        try {
-            String url = "https://graph.microsoft.com/v1.0/me";
-            String response = restTemplate.getForObject(
-                    url + "?access_token=" + accessToken, String.class);
-            JsonNode jsonNode = objectMapper.readTree(response);
-
-            if (jsonNode.has("error")) {
-                throw new RuntimeException("Invalid Microsoft token");
-            }
-
-            return mapUserInfo(jsonNode);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to validate Microsoft token: " + e.getMessage());
-        }
+    public OAuthUserInfo validateToken(String idToken, AuthProvider authProvider) {
+        Jwt jwt = idTokenVerifier.verify(idToken, authProvider, ISSUERS, JWKS_URI);
+        return mapUserInfo(jwt);
     }
 
     @Override
@@ -63,7 +73,15 @@ public class MicrosoftOAuthProvider implements OAuthProvider {
                 throw new RuntimeException("Token exchange failed: " + tokenJson.get("error_description").asText());
             }
 
-            // Use access_token to call Graph API for user info
+            // Prefer the id_token: it is signed, audience-bound, and states the email's
+            // verification status. Graph reports an address without saying whether it was proven.
+            JsonNode idTokenNode = tokenJson.get("id_token");
+            if (idTokenNode != null && !idTokenNode.isNull()) {
+                Jwt jwt = idTokenVerifier.verify(idTokenNode.asText(), authProvider, ISSUERS, JWKS_URI);
+                return mapUserInfo(jwt);
+            }
+
+            // Bearer header, not a query parameter: URLs reach access logs, proxies and Referer.
             String accessToken = tokenJson.get("access_token").asText();
             HttpHeaders userInfoHeaders = new HttpHeaders();
             userInfoHeaders.setBearerAuth(accessToken);
@@ -79,12 +97,36 @@ public class MicrosoftOAuthProvider implements OAuthProvider {
         }
     }
 
+    private OAuthUserInfo mapUserInfo(Jwt jwt) {
+        OAuthUserInfo userInfo = new OAuthUserInfo();
+        userInfo.setProviderId(jwt.getSubject());
+
+        String email = jwt.getClaimAsString("email");
+        if (email == null) {
+            email = jwt.getClaimAsString("preferred_username");
+        }
+        userInfo.setEmail(email);
+
+        // Entra ID has no email_verified claim. The nearest equivalent is xms_edov ("email domain
+        // owner verified"), an optional claim the app registration must request. Without it there
+        // is no evidence the address was proven, and a personal account can set an arbitrary one —
+        // so treat it as unverified rather than assuming, as this previously did.
+        userInfo.setEmailVerified(Boolean.TRUE.equals(jwt.getClaim("xms_edov")));
+
+        userInfo.setName(jwt.getClaimAsString("name"));
+        userInfo.setFirstName(jwt.getClaimAsString("given_name"));
+        userInfo.setLastName(jwt.getClaimAsString("family_name"));
+        return userInfo;
+    }
+
     private OAuthUserInfo mapUserInfo(JsonNode jsonNode) {
         OAuthUserInfo userInfo = new OAuthUserInfo();
         userInfo.setProviderId(jsonNode.get("id").asText());
-        userInfo.setEmail(jsonNode.has("mail") ? jsonNode.get("mail").asText() :
-                jsonNode.has("userPrincipalName") ? jsonNode.get("userPrincipalName").asText() : null);
-        userInfo.setEmailVerified(true);
+        userInfo.setEmail(jsonNode.has("mail") && !jsonNode.get("mail").isNull()
+                ? jsonNode.get("mail").asText()
+                : jsonNode.has("userPrincipalName") ? jsonNode.get("userPrincipalName").asText() : null);
+        // Graph states no verification status, so this path cannot assert one.
+        userInfo.setEmailVerified(false);
         userInfo.setFirstName(jsonNode.has("givenName") ? jsonNode.get("givenName").asText() : null);
         userInfo.setLastName(jsonNode.has("surname") ? jsonNode.get("surname").asText() : null);
         userInfo.setName(jsonNode.has("displayName") ? jsonNode.get("displayName").asText() : null);

@@ -1,5 +1,6 @@
 package com.mcueen.auth.config.security.provider;
 
+import com.mcueen.auth.util.auth.AuthConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
@@ -15,7 +16,9 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.Set;
+import java.util.UUID;
 
 @Component
 public class AuthenticationProviderHelper {
@@ -33,6 +36,22 @@ public class AuthenticationProviderHelper {
     }
 
     public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client, AuthorizationGrantType grantType) {
+        // A fresh login starts a new family, dated now.
+        return getOAuth2Authorization(authentication, client, grantType, null, null);
+    }
+
+    /**
+     * Issues a token pair, optionally continuing an existing rotation family.
+     *
+     * @param familyId      the family to continue, or null to start a new one
+     * @param grantIssuedAt when the family's original login happened, or null for a new family
+     */
+    public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client,
+                                                      AuthorizationGrantType grantType,
+                                                      String familyId, Instant grantIssuedAt) {
+        String resolvedFamilyId = (familyId != null) ? familyId : UUID.randomUUID().toString();
+        Instant resolvedGrantIssuedAt = (grantIssuedAt != null) ? grantIssuedAt : Instant.now();
+
         OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext.builder()
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
                 .principal(authentication)
@@ -58,6 +77,10 @@ public class AuthenticationProviderHelper {
                 .principalName(authentication.getName())
                 .authorizedScopes(client.getScopes())
                 .authorizationGrantType(grantType)
+                // Carried as attributes so the persistence layer can stamp both tokens with the
+                // family without every caller needing a rotation-aware signature.
+                .attribute(AuthConstants.ATTR_FAMILY_ID, resolvedFamilyId)
+                .attribute(AuthConstants.ATTR_GRANT_ISSUED_AT, resolvedGrantIssuedAt)
                 .build();
         oAuth2AuthorizationService.save(auth2Authorization);
         return auth2Authorization;

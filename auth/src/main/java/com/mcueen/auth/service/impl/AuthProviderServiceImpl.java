@@ -7,21 +7,16 @@ import com.mcueen.auth.controller.dto.OAuthCallbackDto;
 import com.mcueen.auth.model.user.AuthProvider;
 import com.mcueen.auth.model.user.User;
 import com.mcueen.auth.repository.AuthProviderRepository;
-import com.mcueen.auth.repository.UserRepository;
 import com.mcueen.auth.service.AuthProviderService;
+import com.mcueen.auth.service.FederatedIdentityService;
 import com.mcueen.auth.service.oauth.OAuthProviderFactory;
 import com.mcueen.auth.service.oauth.OAuthUserInfo;
-import com.mcueen.auth.util.auth.AuthConstants;
-import com.mcueen.auth.util.auth.AuthErrorMessages;
 import com.mcueen.auth.util.auth.AuthGrantTypes;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -38,13 +33,7 @@ public class AuthProviderServiceImpl implements AuthProviderService {
     private OAuthProviderFactory oAuthProviderFactory;
 
     @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private RegisteredClientRepository registeredClientRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private FederatedIdentityService federatedIdentityService;
 
     @Autowired
     private AuthenticationProviderHelper authenticationProviderHelper;
@@ -58,45 +47,21 @@ public class AuthProviderServiceImpl implements AuthProviderService {
     }
 
     @Override
-    public OAuth2AccessTokenResponse handleOAuthCallback(OAuthCallbackDto callbackDto, String clientId, String clientSecret) {
-        // Validate OAuth2 client
-        RegisteredClient client = registeredClientRepository.findByClientId(clientId);
-        if (client == null) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT);
-        }
-        if (!passwordEncoder.matches(clientSecret, client.getClientSecret())) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS);
-        }
-
+    public OAuth2AccessTokenResponse handleOAuthCallback(OAuthCallbackDto callbackDto, RegisteredClient client) {
         // Get provider config from DB
-        AuthProvider authProvider = authProviderRepository.findByName(callbackDto.getProvider())
-                .orElseThrow(() -> new BadCredentialsException("Unsupported provider: " + callbackDto.getProvider()));
+        String provider = callbackDto.getProvider();
+        AuthProvider authProvider = federatedIdentityService.requireEnabledProvider(provider);
 
         // Exchange code for user info
-        OAuthUserInfo oauthUser = oAuthProviderFactory.getProvider(callbackDto.getProvider())
+        OAuthUserInfo oauthUser = oAuthProviderFactory.getProvider(provider)
                 .exchangeCodeAndGetUserInfo(callbackDto.getCode(), callbackDto.getRedirectUri(), authProvider);
 
-        if (!oauthUser.isEmailVerified()) {
-            throw new BadCredentialsException(AuthErrorMessages.EMAIL_NOT_VERIFIED);
-        }
-
-        // Find or create user
-        String provider = callbackDto.getProvider();
-        User user = userRepository.findByOauthProviderAndOauthProviderId(provider, oauthUser.getProviderId())
-                .or(() -> userRepository.findByEmail(oauthUser.getEmail()))
-                .orElseGet(() -> createOAuthUser(oauthUser, provider));
-
-        // Link account if needed
-        if (user.getOauthProviderId() == null) {
-            user.setOauthProvider(provider);
-            user.setOauthProviderId(oauthUser.getProviderId());
-            user.setAuthMethod(AuthConstants.AUTH_METHOD_BOTH);
-            userRepository.save(user);
-        }
+        // Find, link, or create the account
+        User user = federatedIdentityService.resolveUser(oauthUser, provider);
 
         // Generate tokens
         ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(
-                user.getEmail(), null, clientId, clientSecret);
+                user.getEmail(), null, client.getClientId(), null);
 
         OAuth2Authorization auth2Authorization = authenticationProviderHelper
                 .getOAuth2Authorization(authToken, client, AuthGrantTypes.TOKEN_EXCHANGE);
@@ -114,16 +79,5 @@ public class AuthProviderServiceImpl implements AuthProviderService {
         }
 
         return builder.build();
-    }
-
-    private User createOAuthUser(OAuthUserInfo oauthUser, String provider) {
-        User user = new User();
-        user.setEmail(oauthUser.getEmail());
-        user.setOauthProvider(provider);
-        user.setOauthProviderId(oauthUser.getProviderId());
-        user.setFirstname(oauthUser.getFirstName());
-        user.setLastname(oauthUser.getLastName());
-        user.setAuthMethod(AuthConstants.AUTH_METHOD_OAUTH);
-        return userRepository.save(user);
     }
 }

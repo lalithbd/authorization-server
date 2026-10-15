@@ -19,6 +19,14 @@ server:
   port: 8080
 cors:
   allowed-origins: http://localhost:3000
+auth:
+  refresh-token:
+    # Window after rotation in which the superseded token still returns the replacement pair,
+    # covering clients that lost the response. Longer values are friendlier to flaky networks and
+    # give an attacker a wider replay window. 0 disables the window entirely.
+    rotation-grace-seconds: 15
+    # Hard ceiling on how long one login can be extended by rotation. 30 days.
+    absolute-lifetime-seconds: 2592000
 logging.level:
   org:
     springframework:

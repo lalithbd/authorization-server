@@ -1,6 +1,9 @@
 package com.mcueen.auth.config.security;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcueen.auth.config.security.filter.AuthenticationFilterHelper;
+import com.mcueen.auth.config.security.filter.ClientAuthenticator;
 import com.mcueen.auth.config.security.filter.CustomTokenHandler;
 import com.mcueen.auth.config.security.filter.OAuthCallbackHandler;
 import com.mcueen.auth.config.security.filter.RefreshTokenHandler;
@@ -9,16 +12,15 @@ import com.mcueen.auth.config.security.filter.UsernamePasswordAuthHandler;
 import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
 import com.mcueen.auth.config.security.provider.FederatedAuthenticationProvider;
 import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
+import com.mcueen.auth.service.AuthProviderService;
+import com.mcueen.auth.service.impl.OAuth2AuthorizationServiceImpl;
 import com.mcueen.auth.util.auth.AuthEndpoints;
+import jakarta.servlet.Filter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -34,8 +36,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.List;
-
 @Configuration
 @Import(OAuth2AuthorizationServerConfiguration.class)
 public class AuthorizationServerConfig {
@@ -44,35 +44,41 @@ public class AuthorizationServerConfig {
     private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
 
     @Autowired
-    private RefreshTokenHandler refreshTokenHandler;
-
-    @Autowired
-    private UsernamePasswordAuthHandler usernamePasswordAuthHandler;
-
-    @Autowired
-    private CustomTokenHandler customTokenHandler;
-
-    @Autowired
-    private OAuthCallbackHandler oAuthCallbackHandler;
-
-    @Autowired
-    private TokenIntrospectionHandler tokenIntrospectionHandler;
-
-    @Autowired
     private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     @Autowired
     private FederatedAuthenticationProvider federatedAuthenticationProvider;
 
-    @Value("${cors.allowed-origins:http://localhost:3000}")
-    private List<String> allowedOrigins;
 
-
+    /**
+     * The five handlers below are constructed here rather than being {@code @Component}s. Spring
+     * Boot auto-registers every {@link Filter} bean against {@code /*}, which would run them a
+     * second time outside this chain. Keeping them out of the context removes that possibility
+     * instead of switching it off after the fact.
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   OAuth2TokenGenerator<?> tokenGenerator,
+                                                   AuthenticationManager authenticationManager,
+                                                   AuthenticationFilterHelper authenticationFilterHelper,
+                                                   ClientAuthenticator clientAuthenticator,
+                                                   AuthProviderService authProviderService,
+                                                   OAuth2AuthorizationServiceImpl oAuth2AuthorizationService,
+                                                   ObjectMapper objectMapper,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
+
+        UsernamePasswordAuthHandler usernamePasswordAuthHandler =
+                new UsernamePasswordAuthHandler(authenticationFilterHelper, objectMapper, clientAuthenticator);
+        OAuthCallbackHandler oAuthCallbackHandler =
+                new OAuthCallbackHandler(authProviderService, objectMapper, clientAuthenticator);
+        RefreshTokenHandler refreshTokenHandler =
+                new RefreshTokenHandler(authenticationFilterHelper, objectMapper, clientAuthenticator);
+        CustomTokenHandler customTokenHandler = new CustomTokenHandler(oAuth2AuthorizationService);
+        TokenIntrospectionHandler tokenIntrospectionHandler =
+                new TokenIntrospectionHandler(oAuth2AuthorizationService, objectMapper, clientAuthenticator);
 
         return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.INTROSPECT, AuthEndpoints.PROVIDERS,
                                 AuthEndpoints.OAUTH_CALLBACK, AuthEndpoints.SIGNUP, AuthEndpoints.LOGIN,
@@ -99,26 +105,17 @@ public class AuthorizationServerConfig {
 
     @Bean
     public AuthorizationServerSettings providerSettings() {
+        // Introspection is intentionally left on the Spring Authorization Server default
+        // (/oauth2/introspect). Remapping it to AuthEndpoints.INTROSPECT would hand that path to
+        // the authorization server chain, which registers at HIGHEST_PRECEDENCE and would shadow
+        // TokenIntrospectionHandler. Each path has exactly one owner.
         return AuthorizationServerSettings.builder()
                 .tokenEndpoint(AuthEndpoints.TOKEN)
-                .tokenIntrospectionEndpoint(AuthEndpoints.INTROSPECT)
                 .build();
     }
 
     @Bean
     public OAuth2TokenGenerator<?> tokenGenerator() {
         return new DelegatingOAuth2TokenGenerator(new OAuth2RefreshTokenGenerator(), new OAuth2AccessTokenGenerator());
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 }

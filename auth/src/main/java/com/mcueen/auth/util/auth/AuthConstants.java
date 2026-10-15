@@ -8,6 +8,7 @@ public final class AuthConstants {
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String BEARER_PREFIX = "Bearer ";
     public static final int BEARER_PREFIX_LENGTH = 7;
+    public static final String BASIC_PREFIX = "Basic ";
     public static final int BASIC_PREFIX_LENGTH = 6;
 
     // Providers
@@ -26,4 +27,11 @@ public final class AuthConstants {
     public static final String FIELD_PASSWORD = "password";
     public static final String FIELD_TOKEN = "token";
     public static final String FIELD_REFRESH_TOKEN = "refreshToken";
+    public static final String FIELD_CLIENT_ID = "client_id";
+    public static final String FIELD_CLIENT_SECRET = "client_secret";
+
+    // OAuth2Authorization attribute keys used to carry rotation lineage from the point tokens are
+    // generated to the point they are persisted.
+    public static final String ATTR_FAMILY_ID = "family_id";
+    public static final String ATTR_GRANT_ISSUED_AT = "grant_issued_at";
 }

@@ -11,31 +11,40 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
-import org.springframework.stereotype.Component;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Map;
 
-@Component
+/**
+ * Deliberately not a bean. Spring Boot auto-registers every {@link jakarta.servlet.Filter} bean
+ * against {@code /*}, which would run this outside the security chain. It is constructed in
+ * {@code AuthorizationServerConfig} and added to the chain there instead.
+ */
 public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
 
-    @Autowired
-    private AuthenticationFilterHelper authenticationFilterHelper;
+    private final AuthenticationFilterHelper authenticationFilterHelper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+
+    private final ClientAuthenticator clientAuthenticator;
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
+
+    public UsernamePasswordAuthHandler(AuthenticationFilterHelper authenticationFilterHelper,
+                                       ObjectMapper objectMapper,
+                                       ClientAuthenticator clientAuthenticator) {
+        this.authenticationFilterHelper = authenticationFilterHelper;
+        this.objectMapper = objectMapper;
+        this.clientAuthenticator = clientAuthenticator;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -52,20 +61,15 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
             String provider = loginRequest.getOrDefault(AuthConstants.FIELD_PROVIDER, AuthConstants.PROVIDER_EMAIL);
             String username = loginRequest.get(AuthConstants.FIELD_USERNAME);
             String credential = provider.equalsIgnoreCase(AuthConstants.PROVIDER_EMAIL) ? loginRequest.get(AuthConstants.FIELD_PASSWORD) : loginRequest.get(AuthConstants.FIELD_TOKEN);
-                
-            String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
-            if(authHeader == null) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS_JSON);
-                return;
-            }
-            String base64Credentials = authHeader.substring(AuthConstants.BASIC_PREFIX_LENGTH);
-            String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
-            String[] parts = credentials.split(":", 2);
-            
-            ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(username, credential, parts[0], parts[1]);
+
+            // Client is authenticated here; the provider consumes the verified RegisteredClient
+            // rather than re-checking the secret.
+            RegisteredClient client = clientAuthenticator.authenticate(request);
+
+            ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(username, credential, client.getClientId(), null);
+            authToken.setRegisteredClient(client);
             authToken.setDetails(provider);
-            
+
             OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(authToken);
 
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);

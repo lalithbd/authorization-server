@@ -20,4 +20,6 @@ public interface OAuth2TokenRepository extends JpaRepository<OAuth2TokenEntity, 
     void deleteAllByClientIdAndEmailIsNull(String name);
 
     List<OAuth2TokenEntity> findAllByAuthorizationId(String id);
+
+    List<OAuth2TokenEntity> findAllByFamilyIdAndIsRevokedFalse(String familyId);
 }

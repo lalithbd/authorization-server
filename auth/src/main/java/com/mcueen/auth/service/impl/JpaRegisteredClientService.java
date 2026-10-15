@@ -27,8 +27,12 @@ public class JpaRegisteredClientService implements RegisteredClientRepository {
 
     @Override
     public RegisteredClient findById(String id) {
-        OAuth2Client oauth2Client = clientRepository.findById(Long.valueOf(id)).orElseThrow();
-        return toRegisteredClient(oauth2Client);
+        // toRegisteredClient() publishes the client id as the RegisteredClient id, so that string
+        // is what comes back here — via OAuth2TokenEntity.clientId. Reading it as a numeric primary
+        // key threw NumberFormatException for any client id that was not all digits, and
+        // orElseThrow() broke the RegisteredClientRepository contract, which requires null when the
+        // client is not found.
+        return toRegisteredClient(clientRepository.findByClientId(id));
     }
 
     @Override

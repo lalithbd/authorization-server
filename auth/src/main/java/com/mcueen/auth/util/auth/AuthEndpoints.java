@@ -8,7 +8,6 @@ public final class AuthEndpoints {
     public static final String TOKEN = "/auth/token";
     public static final String REFRESH = "/auth/refresh";
     public static final String INTROSPECT = "/auth/introspect";
-    public static final String OAUTH2_INTROSPECT = "/oauth2/introspect";
     public static final String PROVIDERS = "/auth/providers";
     public static final String OAUTH_CALLBACK = "/auth/oauth/callback";
     public static final String SIGNUP = "/users/sign-up";

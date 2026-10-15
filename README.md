@@ -61,6 +61,23 @@ ADD COLUMN auth_method VARCHAR(50);
 CREATE INDEX idx_oauth_provider ON userTable(oauth_provider, oauth_provider_id);
 ```
 
+Refresh token rotation tracking:
+
+```sql
+ALTER TABLE OAuth2Token
+ADD COLUMN family_id VARCHAR(64),
+ADD COLUMN grant_issued_at TIMESTAMP,
+ADD COLUMN revoked_at TIMESTAMP,
+ADD COLUMN replaced_by_authorization_id VARCHAR(255);
+
+-- Reuse detection revokes a whole family on every replay, so this lookup is on the hot path.
+CREATE INDEX idx_token_family ON OAuth2Token(family_id) WHERE family_id IS NOT NULL;
+```
+
+Tokens issued before this migration have a null `family_id`. They keep working and still rotate, but
+reuse detection cannot cascade for them — it needs a family to revoke. They age out at their normal
+expiry.
+
 ### 3. Configure Application
 
 Edit `src/main/resources/application.yml`:
@@ -202,7 +219,8 @@ POST /auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "client_id": "your-client-id"
 }
 ```
 
@@ -214,6 +232,39 @@ Content-Type: application/json
   "token_type": "Bearer",
   "expires_in": 3600
 }
+```
+
+**`client_id` is required.** It must match the client the refresh token was issued to, so one
+client cannot refresh another's token. No secret is sent here, so this identifies the caller's
+client rather than authenticating it — a client id is public. A confidential client should use
+`client_secret_basic` or `client_secret_post` as on the other endpoints.
+
+**Refresh tokens rotate.** Each successful call returns a new refresh token and revokes the one
+presented. Store the new value and discard the old.
+
+**Reuse is detected.** Presenting an already-rotated refresh token revokes every token descended
+from that login — access tokens included — and returns `401`. Because access tokens are opaque and
+checked against the database on every request, revocation takes effect immediately rather than at
+expiry. This is the RFC 9700 section 4.14.2 requirement for issuing refresh tokens to public
+clients.
+
+Two consequences worth planning for:
+
+- If a token is stolen, both the attacker and the legitimate user are logged out. The server cannot
+  tell them apart, so it ends both and forces re-authentication.
+- A client that rotates successfully but never receives the response (dropped connection,
+  backgrounded app) may safely retry. For `auth.refresh-token.rotation-grace-seconds` after
+  rotation, the superseded token returns the *same* replacement pair instead of tripping detection.
+
+**Sessions have an absolute lifetime.** Rotation resets the refresh token's expiry, so
+`auth.refresh-token.absolute-lifetime-seconds` caps how long one login can be extended regardless of
+how often it rotates. Past the ceiling the family is revoked and the user must log in again.
+
+```yaml
+auth:
+  refresh-token:
+    rotation-grace-seconds: 15        # 0 disables the retry window
+    absolute-lifetime-seconds: 2592000  # 30 days
 ```
 
 #### 7. Token Introspection
@@ -489,10 +540,10 @@ curl -X POST http://localhost:8080/auth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d 'grant_type=client_credentials&scope=read write'
 
-# Refresh Token
+# Refresh Token (rotates: the presented token is revoked on success)
 curl -X POST http://localhost:8080/auth/refresh \
   -H "Content-Type: application/json" \
-  -d '{"refreshToken":"YOUR_REFRESH_TOKEN"}'
+  -d '{"refreshToken":"YOUR_REFRESH_TOKEN","client_id":"YOUR_CLIENT_ID"}'
 
 # Access protected endpoint
 curl -X GET http://localhost:8080/users \
