@@ -3,7 +3,6 @@ package com.mcueen.auth.config.security.provider;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
 import com.mcueen.auth.util.auth.AuthErrorMessages;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,15 +24,17 @@ import java.util.Objects;
 @Component
 public class RefreshTokenAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
 
-    @Autowired
-    @Lazy
-    private RegisteredClientRepository registeredClientRepository;
+    private final RegisteredClientRepository registeredClientRepository;
+    private final OAuth2AuthorizationService auth2AuthorizationService;
+    private final AuthenticationProviderHelper authenticationProviderHelper;
 
-    @Autowired
-    private OAuth2AuthorizationService auth2AuthorizationService;
-
-    @Autowired
-    private AuthenticationProviderHelper authenticationProviderHelper;
+    public RefreshTokenAuthenticationProvider(@Lazy RegisteredClientRepository registeredClientRepository,
+                                              OAuth2AuthorizationService auth2AuthorizationService,
+                                              AuthenticationProviderHelper authenticationProviderHelper) {
+        this.registeredClientRepository = registeredClientRepository;
+        this.auth2AuthorizationService = auth2AuthorizationService;
+        this.authenticationProviderHelper = authenticationProviderHelper;
+    }
 
     @Override
     protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {

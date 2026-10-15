@@ -12,6 +12,7 @@ public final class AuthEndpoints {
     public static final String PROVIDERS = "/auth/providers";
     public static final String OAUTH_CALLBACK = "/auth/oauth/callback";
     public static final String SIGNUP = "/users/sign-up";
+    public static final String POST = "POST";
 
     public static final String SWAGGER_UI = "/swagger-ui/**";
     public static final String SWAGGER_HTML = "/swagger-ui.html";

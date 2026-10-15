@@ -8,7 +8,6 @@ import com.mcueen.auth.service.oauth.OAuthUserInfo;
 import com.mcueen.auth.util.auth.AuthConstants;
 import com.mcueen.auth.util.auth.AuthErrorMessages;
 import com.mcueen.auth.util.auth.AuthGrantTypes;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -22,20 +21,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class FederatedAuthenticationProvider implements AuthenticationProvider {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final OAuthProviderFactory oauthProviderFactory;
+    private final RegisteredClientRepository registeredClientRepository;
+    private final AuthenticationProviderHelper authenticationProviderHelper;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private OAuthProviderFactory oauthProviderFactory;
-    
-    @Autowired
-    private RegisteredClientRepository registeredClientRepository;
-    
-    @Autowired
-    private AuthenticationProviderHelper authenticationProviderHelper;
+    public FederatedAuthenticationProvider(UserRepository userRepository,
+                                           PasswordEncoder passwordEncoder,
+                                           OAuthProviderFactory oauthProviderFactory,
+                                           RegisteredClientRepository registeredClientRepository,
+                                           AuthenticationProviderHelper authenticationProviderHelper) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.oauthProviderFactory = oauthProviderFactory;
+        this.registeredClientRepository = registeredClientRepository;
+        this.authenticationProviderHelper = authenticationProviderHelper;
+    }
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {

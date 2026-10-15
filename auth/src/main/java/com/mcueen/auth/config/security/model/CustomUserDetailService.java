@@ -7,7 +7,6 @@ import com.mcueen.auth.repository.UserRepository;
 import com.mcueen.auth.service.RolePermissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -21,11 +20,14 @@ public class CustomUserDetailService implements UserDetailsService {
 
     Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final RolePermissionService rolePermissionService;
 
-    @Autowired
-    private RolePermissionService rolePermissionService;
+    public CustomUserDetailService(UserRepository userRepository,
+                                   RolePermissionService rolePermissionService) {
+        this.userRepository = userRepository;
+        this.rolePermissionService = rolePermissionService;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {

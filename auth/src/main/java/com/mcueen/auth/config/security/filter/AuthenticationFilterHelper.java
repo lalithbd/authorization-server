@@ -3,7 +3,6 @@ package com.mcueen.auth.config.security.filter;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.util.auth.AuthErrorMessages;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -20,9 +19,11 @@ import java.time.temporal.ChronoUnit;
 @Slf4j
 public class AuthenticationFilterHelper {
 
-    @Autowired
-    @Lazy
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+
+    public AuthenticationFilterHelper(@Lazy AuthenticationManager authenticationManager) {
+        this.authenticationManager = authenticationManager;
+    }
 
     public OAuth2AccessTokenResponse buildOAuth2AccessTokenResponse(Authentication authentication) {
         ClientUserAuthenticationToken authenticated = (ClientUserAuthenticationToken) authenticationManager.authenticate(authentication);

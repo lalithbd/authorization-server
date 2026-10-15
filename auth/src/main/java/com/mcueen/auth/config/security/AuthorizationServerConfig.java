@@ -1,29 +1,24 @@
 package com.mcueen.auth.config.security;
 
 
-import com.mcueen.auth.config.security.filter.CustomTokenHandler;
-import com.mcueen.auth.config.security.filter.OAuthCallbackHandler;
-import com.mcueen.auth.config.security.filter.RefreshTokenHandler;
-import com.mcueen.auth.config.security.filter.TokenIntrospectionHandler;
-import com.mcueen.auth.config.security.filter.UsernamePasswordAuthHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcueen.auth.config.security.filter.*;
 import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
 import com.mcueen.auth.config.security.provider.FederatedAuthenticationProvider;
 import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
+import com.mcueen.auth.service.AuthProviderService;
+import com.mcueen.auth.service.impl.OAuth2AuthorizationServiceImpl;
 import com.mcueen.auth.util.auth.AuthEndpoints;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
@@ -34,45 +29,45 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.List;
-
 @Configuration
 @Import(OAuth2AuthorizationServerConfiguration.class)
 public class AuthorizationServerConfig {
 
-    @Autowired
-    private RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
+    private final RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
+    private final UsernamePasswordAuthHandler usernamePasswordAuthHandler;
+    private final OAuthCallbackHandler oAuthCallbackHandler;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final FederatedAuthenticationProvider federatedAuthenticationProvider;
+    private final RefreshTokenHandler refreshTokenHandler;
+    private final TokenIntrospectionHandler tokenIntrospectionHandler;
+    private final CustomTokenHandler customTokenHandler;
 
-    @Autowired
-    private RefreshTokenHandler refreshTokenHandler;
-
-    @Autowired
-    private UsernamePasswordAuthHandler usernamePasswordAuthHandler;
-
-    @Autowired
-    private CustomTokenHandler customTokenHandler;
-
-    @Autowired
-    private OAuthCallbackHandler oAuthCallbackHandler;
-
-    @Autowired
-    private TokenIntrospectionHandler tokenIntrospectionHandler;
-
-    @Autowired
-    private CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-
-    @Autowired
-    private FederatedAuthenticationProvider federatedAuthenticationProvider;
-
-    @Value("${cors.allowed-origins:http://localhost:3000}")
-    private List<String> allowedOrigins;
-
+    public AuthorizationServerConfig(RefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider,
+                                     CustomAuthenticationEntryPoint customAuthenticationEntryPoint,
+                                     FederatedAuthenticationProvider federatedAuthenticationProvider,
+                                     AuthenticationFilterHelper authenticationFilterHelper,
+                                     AuthProviderService authProviderService,
+                                     ObjectMapper objectMapper,
+                                     OAuth2AuthorizationServiceImpl oAuth2AuthorizationService,
+                                     RegisteredClientRepository registeredClientRepository) {
+        this.refreshTokenAuthenticationProvider = refreshTokenAuthenticationProvider;
+        this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
+        this.federatedAuthenticationProvider = federatedAuthenticationProvider;
+        this.usernamePasswordAuthHandler = new UsernamePasswordAuthHandler(authenticationFilterHelper, objectMapper);
+        this.oAuthCallbackHandler = new OAuthCallbackHandler(authProviderService, objectMapper);
+        this.refreshTokenHandler = new RefreshTokenHandler(authenticationFilterHelper, objectMapper);
+        this.tokenIntrospectionHandler = new TokenIntrospectionHandler(oAuth2AuthorizationService, objectMapper, registeredClientRepository);
+        this.customTokenHandler = new CustomTokenHandler(oAuth2AuthorizationService);
+    }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2TokenGenerator<?> tokenGenerator, AuthenticationManager authenticationManager) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   OAuth2TokenGenerator<?> tokenGenerator,
+                                                   AuthenticationManager authenticationManager,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
 
         return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.INTROSPECT, AuthEndpoints.PROVIDERS,
                                 AuthEndpoints.OAUTH_CALLBACK, AuthEndpoints.SIGNUP, AuthEndpoints.LOGIN,
@@ -108,17 +103,5 @@ public class AuthorizationServerConfig {
     @Bean
     public OAuth2TokenGenerator<?> tokenGenerator() {
         return new DelegatingOAuth2TokenGenerator(new OAuth2RefreshTokenGenerator(), new OAuth2AccessTokenGenerator());
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 }

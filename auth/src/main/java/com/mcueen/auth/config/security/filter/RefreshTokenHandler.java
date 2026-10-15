@@ -27,30 +27,33 @@ import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-@Component
 public class RefreshTokenHandler extends OncePerRequestFilter {
 
-    @Autowired
-    private AuthenticationFilterHelper authenticationFilterHelper;
+    private final AuthenticationFilterHelper authenticationFilterHelper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
+
+    public RefreshTokenHandler(AuthenticationFilterHelper authenticationFilterHelper,
+                               ObjectMapper objectMapper) {
+        this.authenticationFilterHelper = authenticationFilterHelper;
+        this.objectMapper = objectMapper;
+    }
+
 
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!AuthEndpoints.REFRESH.equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
+        if (!AuthEndpoints.REFRESH.equals(request.getServletPath()) || !AuthEndpoints.POST.equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }

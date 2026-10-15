@@ -9,11 +9,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -23,23 +21,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-@Component
 public class TokenIntrospectionHandler extends OncePerRequestFilter {
 
-    @Autowired
-    private OAuth2AuthorizationServiceImpl oAuth2AuthorizationService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final OAuth2AuthorizationServiceImpl oAuth2AuthorizationService;
 
-    @Autowired
-    private RegisteredClientRepository registeredClientRepository;
+    private final ObjectMapper objectMapper;
+
+    private final RegisteredClientRepository registeredClientRepository;
+
+    public TokenIntrospectionHandler(OAuth2AuthorizationServiceImpl oAuth2AuthorizationService,
+                                     ObjectMapper objectMapper,
+                                     RegisteredClientRepository registeredClientRepository) {
+        this.oAuth2AuthorizationService = oAuth2AuthorizationService;
+        this.objectMapper = objectMapper;
+        this.registeredClientRepository = registeredClientRepository;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (!AuthEndpoints.OAUTH2_INTROSPECT.equals(request.getRequestURI()) || !"POST".equals(request.getMethod())) {
+        if (!AuthEndpoints.OAUTH2_INTROSPECT.equals(request.getRequestURI()) || !AuthEndpoints.POST.equals(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }

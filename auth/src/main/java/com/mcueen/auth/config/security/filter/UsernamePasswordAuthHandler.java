@@ -11,14 +11,12 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -26,14 +24,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 
-@Component
 public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
 
-    @Autowired
-    private AuthenticationFilterHelper authenticationFilterHelper;
+    private final AuthenticationFilterHelper authenticationFilterHelper;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    public UsernamePasswordAuthHandler(AuthenticationFilterHelper authenticationFilterHelper,
+                                       ObjectMapper objectMapper) {
+        this.authenticationFilterHelper = authenticationFilterHelper;
+        this.objectMapper = objectMapper;
+    }
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
 
@@ -41,7 +41,7 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if (!AuthEndpoints.LOGIN.equals(request.getServletPath()) || !"POST".equalsIgnoreCase(request.getMethod())) {
+        if (!AuthEndpoints.LOGIN.equals(request.getServletPath()) || !AuthEndpoints.POST.equalsIgnoreCase(request.getMethod())) {
             chain.doFilter(request, response);
             return;
         }

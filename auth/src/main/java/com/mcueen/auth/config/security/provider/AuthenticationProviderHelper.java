@@ -1,6 +1,5 @@
 package com.mcueen.auth.config.security.provider;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -20,13 +19,14 @@ import java.util.Set;
 @Component
 public class AuthenticationProviderHelper {
 
-    @Autowired
-    @Lazy
-    private OAuth2TokenGenerator<?> tokenGenerator;
+    private final OAuth2TokenGenerator<?> tokenGenerator;
+    private final OAuth2AuthorizationService oAuth2AuthorizationService;
 
-    @Autowired
-    @Lazy
-    private OAuth2AuthorizationService oAuth2AuthorizationService;
+    public AuthenticationProviderHelper(@Lazy OAuth2TokenGenerator<?> tokenGenerator,
+                                        @Lazy OAuth2AuthorizationService oAuth2AuthorizationService) {
+        this.tokenGenerator = tokenGenerator;
+        this.oAuth2AuthorizationService = oAuth2AuthorizationService;
+    }
 
     public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client) {
         return getOAuth2Authorization(authentication, client, AuthorizationGrantType.PASSWORD);
