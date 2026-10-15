@@ -69,7 +69,7 @@ public class AuthorizationServerConfig {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.INTROSPECT, AuthEndpoints.PROVIDERS,
+                        .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.OAUTH2_INTROSPECT, AuthEndpoints.PROVIDERS,
                                 AuthEndpoints.OAUTH_CALLBACK, AuthEndpoints.SIGNUP, AuthEndpoints.LOGIN,
                                 AuthEndpoints.SWAGGER_UI, AuthEndpoints.API_DOCS, AuthEndpoints.SWAGGER_HTML).permitAll()
                         .anyRequest().authenticated())
@@ -96,7 +96,6 @@ public class AuthorizationServerConfig {
     public AuthorizationServerSettings providerSettings() {
         return AuthorizationServerSettings.builder()
                 .tokenEndpoint(AuthEndpoints.TOKEN)
-                .tokenIntrospectionEndpoint(AuthEndpoints.INTROSPECT)
                 .build();
     }
 
