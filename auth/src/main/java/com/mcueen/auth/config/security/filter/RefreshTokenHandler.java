@@ -2,6 +2,7 @@ package com.mcueen.auth.config.security.filter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcueen.auth.config.security.model.ClientAuthenticator;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.config.security.model.RefreshTokenAuthenticationToken;
 import com.mcueen.auth.util.auth.AuthConstants;
@@ -24,6 +25,7 @@ import org.springframework.security.oauth2.core.http.converter.OAuth2AccessToken
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
@@ -38,13 +40,15 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
     private final AuthenticationFilterHelper authenticationFilterHelper;
 
     private final ObjectMapper objectMapper;
+    private final ClientAuthenticator clientAuthenticator;
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
 
     public RefreshTokenHandler(AuthenticationFilterHelper authenticationFilterHelper,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper, ClientAuthenticator clientAuthenticator) {
         this.authenticationFilterHelper = authenticationFilterHelper;
         this.objectMapper = objectMapper;
+        this.clientAuthenticator = clientAuthenticator;
     }
 
 
@@ -61,8 +65,10 @@ public class RefreshTokenHandler extends OncePerRequestFilter {
         try {
             Map<String, String> loginRequest = objectMapper.readValue(request.getInputStream(), new TypeReference<>() {});
             String refreshTokenString = loginRequest.get(AuthConstants.FIELD_REFRESH_TOKEN);
-            OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(
-                    new RefreshTokenAuthenticationToken(null, refreshTokenString));
+            RegisteredClient client = clientAuthenticator.getClient(loginRequest.get(AuthConstants.CLIENT_ID));
+            RefreshTokenAuthenticationToken refreshTokenAuthenticationToken = new RefreshTokenAuthenticationToken(null, refreshTokenString);
+            refreshTokenAuthenticationToken.setRegisteredClient(client);
+            OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(refreshTokenAuthenticationToken);
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
             this.accessTokenResponseConverter.write(auth2AccessTokenResponse, null, httpResponse);
 

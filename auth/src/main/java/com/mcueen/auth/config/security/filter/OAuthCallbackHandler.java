@@ -1,6 +1,7 @@
 package com.mcueen.auth.config.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcueen.auth.config.security.model.ClientAuthenticator;
 import com.mcueen.auth.controller.dto.OAuthCallbackDto;
 import com.mcueen.auth.config.security.model.UnAuthorizedResponse;
 import com.mcueen.auth.service.AuthProviderService;
@@ -17,6 +18,7 @@ import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -27,10 +29,12 @@ public class OAuthCallbackHandler extends OncePerRequestFilter {
 
     private final AuthProviderService authProviderService;
     private final ObjectMapper objectMapper;
+    private final ClientAuthenticator clientAuthenticator;
 
-    public OAuthCallbackHandler(AuthProviderService authProviderService, ObjectMapper objectMapper) {
+    public OAuthCallbackHandler(AuthProviderService authProviderService, ObjectMapper objectMapper, ClientAuthenticator clientAuthenticator) {
         this.authProviderService = authProviderService;
         this.objectMapper = objectMapper;
+        this.clientAuthenticator = clientAuthenticator;
     }
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter =
@@ -49,17 +53,9 @@ public class OAuthCallbackHandler extends OncePerRequestFilter {
             OAuthCallbackDto callbackDto = objectMapper.readValue(request.getInputStream(), OAuthCallbackDto.class);
 
             // Extract client credentials from Basic auth header
-            String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
-            if (authHeader == null) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS_JSON);
-                return;
-            }
-            String base64Credentials = authHeader.substring(AuthConstants.BASIC_PREFIX_LENGTH);
-            String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
-            String[] parts = credentials.split(":", 2);
+            RegisteredClient client = clientAuthenticator.authenticateClient(request);
 
-            OAuth2AccessTokenResponse tokenResponse = authProviderService.handleOAuthCallback(callbackDto, parts[0], parts[1]);
+            OAuth2AccessTokenResponse tokenResponse = authProviderService.handleOAuthCallback(callbackDto, client);
 
             ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
             this.accessTokenResponseConverter.write(tokenResponse, null, httpResponse);

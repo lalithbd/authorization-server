@@ -8,34 +8,72 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Instant;
+import java.util.regex.Pattern;
+
 @Service
 public class MicrosoftOAuthProvider implements OAuthProvider {
+
+    private static final Pattern TENANT_ID = Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
+    private final JwtDecoder idTokenDecoder;
 
     @Autowired
     private RestTemplate restTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    public MicrosoftOAuthProvider() {
+        this(NimbusJwtDecoder.withJwkSetUri("https://login.microsoftonline.com/common/discovery/v2.0/keys").build());
+    }
+
+    MicrosoftOAuthProvider(JwtDecoder idTokenDecoder) {
+        this.idTokenDecoder = idTokenDecoder;
+    }
+
     @Override
-    public OAuthUserInfo validateToken(String accessToken) {
+    public OAuthUserInfo validateToken(String idToken, AuthProvider authProvider) {
         try {
-            String url = "https://graph.microsoft.com/v1.0/me";
-            String response = restTemplate.getForObject(
-                    url + "?access_token=" + accessToken, String.class);
-            JsonNode jsonNode = objectMapper.readTree(response);
-
-            if (jsonNode.has("error")) {
-                throw new RuntimeException("Invalid Microsoft token");
+            if (idToken == null || idToken.isBlank()) {
+                throw new BadCredentialsException("Invalid Microsoft ID token");
             }
-
-            return mapUserInfo(jsonNode);
+            Jwt verified = idTokenDecoder.decode(idToken);
+            String tenantId = verified.getClaimAsString("tid");
+            String objectId = verified.getClaimAsString("oid");
+            String email = verified.getClaimAsString("email");
+            if (email == null || email.isBlank()) {
+                email = verified.getClaimAsString("preferred_username");
+            }
+            String issuer = tenantId == null ? null : "https://login.microsoftonline.com/" + tenantId + "/v2.0";
+            if (tenantId == null || !TENANT_ID.matcher(tenantId).matches()
+                    || authProvider.getIssuer() == null || !authProvider.getIssuer().equals(issuer)
+                    || authProvider.getClientId() == null || authProvider.getClientId().isBlank()
+                    || !verified.getAudience().contains(authProvider.getClientId())
+                    || verified.getExpiresAt() == null || !verified.getExpiresAt().isAfter(Instant.now())
+                    || objectId == null || objectId.isBlank()) {
+                throw new BadCredentialsException("Invalid Microsoft identity");
+            }
+            OAuthUserInfo userInfo = new OAuthUserInfo();
+            userInfo.setProviderId(objectId);
+            userInfo.setEmail(email);
+            // A Graph mail/UPN (and an ID token email) is not proof of mailbox ownership.
+            userInfo.setEmailVerified(Boolean.TRUE.equals(verified.getClaimAsBoolean("email_verified")));
+            userInfo.setFirstName(verified.getClaimAsString("given_name"));
+            userInfo.setLastName(verified.getClaimAsString("family_name"));
+            userInfo.setName(verified.getClaimAsString("name"));
+            return userInfo;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to validate Microsoft token: " + e.getMessage());
+            throw new BadCredentialsException("Invalid Microsoft ID token", e);
         }
     }
 

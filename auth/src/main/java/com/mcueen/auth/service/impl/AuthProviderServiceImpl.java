@@ -58,16 +58,7 @@ public class AuthProviderServiceImpl implements AuthProviderService {
     }
 
     @Override
-    public OAuth2AccessTokenResponse handleOAuthCallback(OAuthCallbackDto callbackDto, String clientId, String clientSecret) {
-        // Validate OAuth2 client
-        RegisteredClient client = registeredClientRepository.findByClientId(clientId);
-        if (client == null) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT);
-        }
-        if (!passwordEncoder.matches(clientSecret, client.getClientSecret())) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS);
-        }
-
+    public OAuth2AccessTokenResponse handleOAuthCallback(OAuthCallbackDto callbackDto, RegisteredClient client) {
         // Get provider config from DB
         AuthProvider authProvider = authProviderRepository.findByName(callbackDto.getProvider())
                 .orElseThrow(() -> new BadCredentialsException("Unsupported provider: " + callbackDto.getProvider()));
@@ -95,11 +86,9 @@ public class AuthProviderServiceImpl implements AuthProviderService {
         }
 
         // Generate tokens
-        ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(
-                user.getEmail(), null, clientId, clientSecret);
+        ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(user.getEmail(), null, client.getClientId());
 
-        OAuth2Authorization auth2Authorization = authenticationProviderHelper
-                .getOAuth2Authorization(authToken, client, AuthGrantTypes.TOKEN_EXCHANGE);
+        OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authToken, client, AuthGrantTypes.TOKEN_EXCHANGE);
 
         OAuth2AccessToken accessToken = auth2Authorization.getAccessToken().getToken();
         OAuth2AccessTokenResponse.Builder builder = OAuth2AccessTokenResponse

@@ -1,7 +1,9 @@
 package com.mcueen.auth.config.security.provider;
 
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
+import com.mcueen.auth.model.user.AuthProvider;
 import com.mcueen.auth.model.user.User;
+import com.mcueen.auth.repository.AuthProviderRepository;
 import com.mcueen.auth.repository.UserRepository;
 import com.mcueen.auth.service.oauth.OAuthProviderFactory;
 import com.mcueen.auth.service.oauth.OAuthUserInfo;
@@ -14,114 +16,92 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Component;
 
 @Component
 public class FederatedAuthenticationProvider implements AuthenticationProvider {
 
     private final UserRepository userRepository;
+    private final AuthProviderRepository authProviderRepository;
     private final PasswordEncoder passwordEncoder;
     private final OAuthProviderFactory oauthProviderFactory;
-    private final RegisteredClientRepository registeredClientRepository;
     private final AuthenticationProviderHelper authenticationProviderHelper;
 
     public FederatedAuthenticationProvider(UserRepository userRepository,
+                                           AuthProviderRepository authProviderRepository,
                                            PasswordEncoder passwordEncoder,
                                            OAuthProviderFactory oauthProviderFactory,
-                                           RegisteredClientRepository registeredClientRepository,
                                            AuthenticationProviderHelper authenticationProviderHelper) {
         this.userRepository = userRepository;
+        this.authProviderRepository = authProviderRepository;
         this.passwordEncoder = passwordEncoder;
         this.oauthProviderFactory = oauthProviderFactory;
-        this.registeredClientRepository = registeredClientRepository;
         this.authenticationProviderHelper = authenticationProviderHelper;
     }
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         ClientUserAuthenticationToken token = (ClientUserAuthenticationToken) authentication;
-        String provider = (String) token.getDetails();
-        
-        if (AuthConstants.PROVIDER_EMAIL.equalsIgnoreCase(provider)) {
-            return authenticateWithEmail(token);
-        } else {
-            return authenticateWithOAuth(token, provider);
+        if (!(token.getDetails() instanceof String provider) || provider.isBlank()) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
+        return AuthConstants.PROVIDER_EMAIL.equalsIgnoreCase(provider)
+                ? authenticateWithEmail(token) : authenticateWithOAuth(token, provider);
     }
 
     private Authentication authenticateWithEmail(ClientUserAuthenticationToken token) {
-        // Validate client credentials
-        RegisteredClient client = registeredClientRepository.findByClientId(token.getClientId());
-        if (client == null) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT);
-        }
-        if (!passwordEncoder.matches(token.getClientSecret(), client.getClientSecret())) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS);
-        }
-        
-        // Validate user credentials
-        User user = userRepository.findByEmail(token.getName())
-                .orElseThrow(() -> new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS));
-
-        if (!passwordEncoder.matches(token.getCredentials().toString(), user.getPassword())) {
+        if (!(token.getPrincipal() instanceof String username) || username.isBlank()
+                || !(token.getCredentials() instanceof String password) || password.isEmpty()) {
             throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
-        
-        // Generate OAuth2 tokens
-        OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(token, client, AuthGrantTypes.PASSWORD);
-        return new ClientUserAuthenticationToken(token.getName(), client, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken()
-        );
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS));
+
+        if (user.getPassword() == null || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
+        }
+
+        ClientUserAuthenticationToken verifiedToken = new ClientUserAuthenticationToken(user.getEmail(), null, token.getClientId());
+        verifiedToken.setRegisteredClient(token.getRegisteredClient());
+        OAuth2Authorization auth2Authorization = authenticationProviderHelper
+                .getOAuth2Authorization(verifiedToken, token.getRegisteredClient(), AuthGrantTypes.PASSWORD);
+        return new ClientUserAuthenticationToken(
+            user.getEmail(), null, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
     }
 
     private Authentication authenticateWithOAuth(ClientUserAuthenticationToken token, String provider) {
-        // Validate client credentials
-        RegisteredClient client = registeredClientRepository.findByClientId(token.getClientId());
-        if (client == null) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT);
+        if (!(token.getCredentials() instanceof String providerToken) || providerToken.isBlank()) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
-        if (!passwordEncoder.matches(token.getClientSecret(), client.getClientSecret())) {
-            throw new BadCredentialsException(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS);
+        if (!AuthConstants.PROVIDER_GOOGLE.equals(provider) && !AuthConstants.PROVIDER_MICROSOFT.equals(provider)) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
-        
-        // Validate OAuth token
-        String oauthToken = token.getCredentials().toString();
-        OAuthUserInfo oauthUser = oauthProviderFactory.getProvider(provider).validateToken(oauthToken);
-
-        if (!oauthUser.isEmailVerified()) {
-            throw new BadCredentialsException(AuthErrorMessages.EMAIL_NOT_VERIFIED);
+        AuthProvider config = authProviderRepository.findByName(provider)
+                .filter(AuthProvider::isEnabled)
+                .orElseThrow(() -> new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS));
+        OAuthUserInfo oauthUser = oauthProviderFactory.getProvider(provider).validateToken(providerToken, config);
+        if (oauthUser.getProviderId() == null || oauthUser.getProviderId().isBlank()) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
 
         User user = userRepository.findByOauthProviderAndOauthProviderId(provider, oauthUser.getProviderId())
-                .or(() -> userRepository.findByEmail(oauthUser.getEmail()))
                 .orElseGet(() -> createOAuthUser(oauthUser, provider));
-
-        if (user.getOauthProviderId() == null) {
-            user.setOauthProvider(provider);
-            user.setOauthProviderId(oauthUser.getProviderId());
-            user.setAuthMethod(AuthConstants.AUTH_METHOD_BOTH);
-            userRepository.save(user);
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
         }
-
-        ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(
-                user.getEmail(), 
-                null, 
-                token.getClientId(), 
-                token.getClientSecret()
-        );
-        
-        // Generate OAuth2 tokens with token exchange grant type
-        OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authToken, client, AuthGrantTypes.TOKEN_EXCHANGE);
+        ClientUserAuthenticationToken verifiedToken = new ClientUserAuthenticationToken(user.getEmail(), null, token.getClientId());
+        verifiedToken.setRegisteredClient(token.getRegisteredClient());
+        OAuth2Authorization authorization = authenticationProviderHelper
+                .getOAuth2Authorization(verifiedToken, token.getRegisteredClient(), AuthGrantTypes.TOKEN_EXCHANGE);
         return new ClientUserAuthenticationToken(
-            user.getEmail(), 
-            client, 
-            auth2Authorization.getAccessToken(), 
-            auth2Authorization.getRefreshToken()
-        );
+                user.getEmail(), null, authorization.getAccessToken(), authorization.getRefreshToken());
     }
 
     private User createOAuthUser(OAuthUserInfo oauthUser, String provider) {
+        if (!oauthUser.isEmailVerified() || oauthUser.getEmail() == null || oauthUser.getEmail().isBlank()
+                || userRepository.findByEmail(oauthUser.getEmail()).isPresent()) {
+            throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
+        }
         User user = new User();
         user.setEmail(oauthUser.getEmail());
         user.setOauthProvider(provider);

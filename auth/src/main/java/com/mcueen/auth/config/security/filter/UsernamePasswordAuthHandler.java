@@ -2,6 +2,7 @@ package com.mcueen.auth.config.security.filter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mcueen.auth.config.security.model.ClientAuthenticator;
 import com.mcueen.auth.config.security.model.ClientUserAuthenticationToken;
 import com.mcueen.auth.config.security.model.UnAuthorizedResponse;
 import com.mcueen.auth.util.auth.AuthConstants;
@@ -14,25 +15,28 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpResponse;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.Locale;
 import java.util.Map;
 
 public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
 
     private final AuthenticationFilterHelper authenticationFilterHelper;
     private final ObjectMapper objectMapper;
+    private final ClientAuthenticator clientAuthenticator;
 
     public UsernamePasswordAuthHandler(AuthenticationFilterHelper authenticationFilterHelper,
-                                       ObjectMapper objectMapper) {
+                                       ObjectMapper objectMapper, ClientAuthenticator clientAuthenticator) {
         this.authenticationFilterHelper = authenticationFilterHelper;
         this.objectMapper = objectMapper;
+        this.clientAuthenticator = clientAuthenticator;
     }
 
     private final HttpMessageConverter<OAuth2AccessTokenResponse> accessTokenResponseConverter = new OAuth2AccessTokenResponseHttpMessageConverter();
@@ -49,21 +53,24 @@ public class UsernamePasswordAuthHandler extends OncePerRequestFilter {
         try {
             Map<String, String> loginRequest = objectMapper.readValue(request.getInputStream(), new TypeReference<>() {
             });
-            String provider = loginRequest.getOrDefault(AuthConstants.FIELD_PROVIDER, AuthConstants.PROVIDER_EMAIL);
-            String username = loginRequest.get(AuthConstants.FIELD_USERNAME);
-            String credential = provider.equalsIgnoreCase(AuthConstants.PROVIDER_EMAIL) ? loginRequest.get(AuthConstants.FIELD_PASSWORD) : loginRequest.get(AuthConstants.FIELD_TOKEN);
-                
-            String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
-            if(authHeader == null) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write(AuthErrorMessages.INVALID_CLIENT_CREDENTIALS_JSON);
-                return;
+            String requestedProvider = loginRequest.getOrDefault(AuthConstants.FIELD_PROVIDER, AuthConstants.PROVIDER_EMAIL);
+            if (requestedProvider == null) {
+                throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
             }
-            String base64Credentials = authHeader.substring(AuthConstants.BASIC_PREFIX_LENGTH);
-            String credentials = new String(Base64.getDecoder().decode(base64Credentials), StandardCharsets.UTF_8);
-            String[] parts = credentials.split(":", 2);
-            
-            ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(username, credential, parts[0], parts[1]);
+            String provider = requestedProvider.toLowerCase(Locale.ROOT);
+            boolean passwordLogin = AuthConstants.PROVIDER_EMAIL.equals(provider);
+            if ((!passwordLogin && !AuthConstants.PROVIDER_GOOGLE.equals(provider)
+                    && !AuthConstants.PROVIDER_MICROSOFT.equals(provider))
+                    || (passwordLogin && loginRequest.containsKey(AuthConstants.FIELD_TOKEN))
+                    || (!passwordLogin && loginRequest.containsKey(AuthConstants.FIELD_PASSWORD))) {
+                throw new BadCredentialsException(AuthErrorMessages.INVALID_CREDENTIALS);
+            }
+            String username = passwordLogin ? loginRequest.get(AuthConstants.FIELD_USERNAME) : null;
+            String credential = loginRequest.get(passwordLogin ? AuthConstants.FIELD_PASSWORD : AuthConstants.FIELD_TOKEN);
+
+            RegisteredClient client = clientAuthenticator.authenticateClient(request);
+            ClientUserAuthenticationToken authToken = new ClientUserAuthenticationToken(username, credential, client.getClientId());
+            authToken.setRegisteredClient(client);
             authToken.setDetails(provider);
             
             OAuth2AccessTokenResponse auth2AccessTokenResponse = authenticationFilterHelper.buildOAuth2AccessTokenResponse(authToken);

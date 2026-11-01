@@ -21,10 +21,9 @@ public class ClientUserAuthenticationToken extends UsernamePasswordAuthenticatio
     private OAuth2AccessToken accessToken;
     private OAuth2RefreshToken refreshToken;
 
-    public ClientUserAuthenticationToken(Object principal, Object credentials, String clientId, String clientSecret) {
+    public ClientUserAuthenticationToken(Object principal, Object credentials, String clientId) {
         super(principal, credentials);
         this.clientId = clientId;
-        this.clientSecret = clientSecret;
     }
 
     public ClientUserAuthenticationToken(Object principal) {

@@ -28,10 +28,6 @@ public class AuthenticationProviderHelper {
         this.oAuth2AuthorizationService = oAuth2AuthorizationService;
     }
 
-    public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client) {
-        return getOAuth2Authorization(authentication, client, AuthorizationGrantType.PASSWORD);
-    }
-
     public OAuth2Authorization getOAuth2Authorization(Authentication authentication, RegisteredClient client, AuthorizationGrantType grantType) {
         OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext.builder()
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)

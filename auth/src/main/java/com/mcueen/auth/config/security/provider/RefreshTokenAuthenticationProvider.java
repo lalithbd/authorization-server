@@ -24,14 +24,11 @@ import java.util.Objects;
 @Component
 public class RefreshTokenAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
 
-    private final RegisteredClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService auth2AuthorizationService;
     private final AuthenticationProviderHelper authenticationProviderHelper;
 
-    public RefreshTokenAuthenticationProvider(@Lazy RegisteredClientRepository registeredClientRepository,
-                                              OAuth2AuthorizationService auth2AuthorizationService,
+    public RefreshTokenAuthenticationProvider(OAuth2AuthorizationService auth2AuthorizationService,
                                               AuthenticationProviderHelper authenticationProviderHelper) {
-        this.registeredClientRepository = registeredClientRepository;
         this.auth2AuthorizationService = auth2AuthorizationService;
         this.authenticationProviderHelper = authenticationProviderHelper;
     }
@@ -43,15 +40,14 @@ public class RefreshTokenAuthenticationProvider extends AbstractUserDetailsAuthe
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        RefreshTokenAuthenticationToken clientUserAuthenticationToken = (RefreshTokenAuthenticationToken) authentication;
+        RefreshTokenAuthenticationToken token = (RefreshTokenAuthenticationToken) authentication;
 
-        OAuth2Authorization oAuth2Authorization = auth2AuthorizationService.findByToken(clientUserAuthenticationToken.getRefreshToken(), OAuth2TokenType.REFRESH_TOKEN);
+        OAuth2Authorization oAuth2Authorization = auth2AuthorizationService.findByToken(token.getRefreshToken(), OAuth2TokenType.REFRESH_TOKEN);
         if (oAuth2Authorization != null) {
             OAuth2AccessToken refreshToken = oAuth2Authorization.getAccessToken().getToken();
             if (refreshToken != null && Objects.requireNonNull(refreshToken.getExpiresAt()).isAfter(Instant.now())) {
-                RegisteredClient client = registeredClientRepository.findById(oAuth2Authorization.getRegisteredClientId());
-                OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authentication, client);
-                return new ClientUserAuthenticationToken(oAuth2Authorization.getPrincipalName(), client, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
+                OAuth2Authorization auth2Authorization = authenticationProviderHelper.getOAuth2Authorization(authentication, token.getRegisteredClient(), oAuth2Authorization.getAuthorizationGrantType());
+                return new ClientUserAuthenticationToken(oAuth2Authorization.getPrincipalName(), null, auth2Authorization.getAccessToken(), auth2Authorization.getRefreshToken());
             }
         }
         throw new BadCredentialsException(AuthErrorMessages.INVALID_REFRESH_TOKEN);

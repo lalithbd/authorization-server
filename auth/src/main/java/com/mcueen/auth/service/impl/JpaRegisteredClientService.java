@@ -43,7 +43,7 @@ public class JpaRegisteredClientService implements RegisteredClientRepository {
         }
         List<AuthorizationGrantType> authorizationGrantTypeList = new ArrayList<>();
         oauth2Client.getGrantTypes().forEach(e -> authorizationGrantTypeList.add(new AuthorizationGrantType(e)));
-        return RegisteredClient.withId(oauth2Client.getClientId())
+        return RegisteredClient.withId(oauth2Client.getId().toString())
                 .clientId(oauth2Client.getClientId())
                 .clientSecret(oauth2Client.getClientSecret())
                 .tokenSettings(TokenSettings.builder()
@@ -53,7 +53,10 @@ public class JpaRegisteredClientService implements RegisteredClientRepository {
                         .build())
                 .redirectUris(uris -> uris.addAll(oauth2Client.getRedirectUris()))
                 .scopes(scopes -> scopes.addAll(oauth2Client.getScopes()))
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
+                .clientAuthenticationMethods(methods -> {
+                    methods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC);
+                    methods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST);
+                })
                 .authorizationGrantTypes(authorizationGrantTypes -> authorizationGrantTypes.addAll(authorizationGrantTypeList))
                 .build();
     }

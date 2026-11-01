@@ -2,13 +2,16 @@ package com.mcueen.auth.util.auth;
 
 public final class AuthConstants {
 
-    private AuthConstants() {}
+    private AuthConstants() {
+    }
 
     // Headers
     public static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String BEARER_PREFIX = "Bearer ";
     public static final int BEARER_PREFIX_LENGTH = 7;
     public static final int BASIC_PREFIX_LENGTH = 6;
+    public static final String CLIENT_ID = "client_id";
+    public static final String CLIENT_SECRET = "client_secret";
 
     // Providers
     public static final String PROVIDER_EMAIL = "email";

@@ -4,18 +4,20 @@ package com.mcueen.auth.config.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mcueen.auth.config.security.filter.*;
 import com.mcueen.auth.config.security.handler.CustomAuthenticationEntryPoint;
+import com.mcueen.auth.config.security.model.ClientAuthenticator;
 import com.mcueen.auth.config.security.provider.FederatedAuthenticationProvider;
 import com.mcueen.auth.config.security.provider.RefreshTokenAuthenticationProvider;
 import com.mcueen.auth.service.AuthProviderService;
 import com.mcueen.auth.service.impl.OAuth2AuthorizationServiceImpl;
 import com.mcueen.auth.util.auth.AuthEndpoints;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -49,13 +51,15 @@ public class AuthorizationServerConfig {
                                      AuthProviderService authProviderService,
                                      ObjectMapper objectMapper,
                                      OAuth2AuthorizationServiceImpl oAuth2AuthorizationService,
-                                     RegisteredClientRepository registeredClientRepository) {
+                                     RegisteredClientRepository registeredClientRepository,
+                                     PasswordEncoder passwordEncoder) {
+        ClientAuthenticator clientAuthenticator = new ClientAuthenticator(registeredClientRepository, passwordEncoder);
         this.refreshTokenAuthenticationProvider = refreshTokenAuthenticationProvider;
         this.customAuthenticationEntryPoint = customAuthenticationEntryPoint;
         this.federatedAuthenticationProvider = federatedAuthenticationProvider;
-        this.usernamePasswordAuthHandler = new UsernamePasswordAuthHandler(authenticationFilterHelper, objectMapper);
-        this.oAuthCallbackHandler = new OAuthCallbackHandler(authProviderService, objectMapper);
-        this.refreshTokenHandler = new RefreshTokenHandler(authenticationFilterHelper, objectMapper);
+        this.usernamePasswordAuthHandler = new UsernamePasswordAuthHandler(authenticationFilterHelper, objectMapper, clientAuthenticator);
+        this.oAuthCallbackHandler = new OAuthCallbackHandler(authProviderService, objectMapper, clientAuthenticator);
+        this.refreshTokenHandler = new RefreshTokenHandler(authenticationFilterHelper, objectMapper, clientAuthenticator);
         this.tokenIntrospectionHandler = new TokenIntrospectionHandler(oAuth2AuthorizationService, objectMapper, registeredClientRepository);
         this.customTokenHandler = new CustomTokenHandler(oAuth2AuthorizationService);
     }
@@ -69,6 +73,7 @@ public class AuthorizationServerConfig {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(authz -> authz
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(AuthEndpoints.TOKEN, AuthEndpoints.OAUTH2_INTROSPECT, AuthEndpoints.PROVIDERS,
                                 AuthEndpoints.OAUTH_CALLBACK, AuthEndpoints.SIGNUP, AuthEndpoints.LOGIN,
                                 AuthEndpoints.SWAGGER_UI, AuthEndpoints.API_DOCS, AuthEndpoints.SWAGGER_HTML).permitAll()
@@ -88,7 +93,7 @@ public class AuthorizationServerConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager() {
         return new ProviderManager(federatedAuthenticationProvider, refreshTokenAuthenticationProvider);
     }
 
